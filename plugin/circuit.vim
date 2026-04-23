@@ -35,6 +35,9 @@ let g:circuit_hide_numbers     = get(g:, 'circuit_hide_numbers', 1)
 let g:circuit_hide_signcolumn  = get(g:, 'circuit_hide_signcolumn', 1)
 
 let g:circuit_map_keys         = get(g:, 'circuit_map_keys', 1)
+" When 1, tnoremap <C-h> to window left (conflicts with Ctrl+Backspace in
+" many CLIs, which also sends ^H). Default 0: use <M-h> for left instead.
+let g:circuit_tmap_ch_left     = get(g:, 'circuit_tmap_ch_left', 0)
 
 " Keymap variables (all overridable)
 let g:circuit_map_toggle       = get(g:, 'circuit_map_toggle', '<leader>c')
@@ -194,7 +197,11 @@ if g:circuit_map_keys
   execute 'nnoremap <silent> ' . g:circuit_map_sessions . ' :call circuit#sessions()<CR>'
 
   " Terminal-mode window navigation
-  tnoremap <silent> <C-h> <C-\><C-n><C-w>h
+  " <C-h> omitted by default: same as Ctrl+Backspace in many terminals (^H)
+  if g:circuit_tmap_ch_left
+    tnoremap <silent> <C-h> <C-\><C-n><C-w>h
+  endif
+  tnoremap <silent> <M-h> <C-\><C-n><C-w>h
   tnoremap <silent> <C-j> <C-\><C-n><C-w>j
   tnoremap <silent> <C-k> <C-\><C-n><C-w>k
   tnoremap <silent> <C-l> <C-\><C-n><C-w>l

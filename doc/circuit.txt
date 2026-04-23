@@ -327,11 +327,16 @@ These keymaps are active when the cursor is inside any terminal buffer.
 
   Key              Action ~
   <C-w>z           Zoom toggle (|g:circuit_map_zoom_term|)
-  <C-h>            Navigate to window left
+  <M-h>            Navigate to window left
   <C-j>            Navigate to window below
   <C-k>            Navigate to window above
   <C-l>            Navigate to window right
   <C-v>            Paste from system clipboard
+
+  |<C-h>| is not mapped to window-left by default: in many terminals it is
+  the same as Ctrl+Backspace (^H), so mapping it would steal
+  word-delete in embedded TUIs (e.g. OpenCode). To restore the old
+  |<C-h>| behavior, set |g:circuit_tmap_ch_left| to `1`.
 
 ==============================================================================
 8. Tab-Completion                                  *circuit-completion*
@@ -494,6 +499,15 @@ list. Example override:
   let g:circuit_map_zoom = '<leader>z'
 <
 
+                                                *g:circuit_tmap_ch_left*
+g:circuit_tmap_ch_left      Number (default: `0`)
+                            When `1` and |g:circuit_map_keys| is on,
+                            map |<C-h>| in terminal mode to "window
+                            left" (same as |<M-h>|). Default is `0`
+                            because |<C-h>| matches Ctrl+Backspace in
+                            many terminals and breaks line editing in
+                            some agent CLIs.
+
 ------------------------------------------------------------------------------
 10.4 Display                                  *circuit-config-display*
 
@@ -545,6 +559,12 @@ OpenCode prints JSON (`sessionID`, `invalid_format`, `ses`, etc.)~
 Keymaps conflict~
   Set `g:circuit_map_keys = 0` to disable all defaults, then define
   your own mappings.
+
+Ctrl+Backspace in the agent TUI jumps to another window~
+  Many terminals send the same `^H` for Ctrl+Backspace and for
+  |<C-h>|. The default maps |<M-h>| to "window left" in |terminal| mode
+  (not |<C-h>|). See |g:circuit_tmap_ch_left| if you need the old
+  |<C-h>| window-left mapping.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
