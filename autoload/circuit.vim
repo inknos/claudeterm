@@ -212,6 +212,18 @@ function! circuit#resume() abort
     return
   endif
   let l:p = s:provider()
+  " OpenCode and similar: no --resume; use the same command as |circuit#sessions()|
+  " (e.g. `opencode session list`) so :CTresume shows sessions instead of
+  " an invalid `opencode --session` with no id.
+  if empty(l:p.resume) && !empty(l:p.session_list_cmd)
+    call s:kill_term_if_alive()
+    let l:override = s:get('command', '')
+    let l:bin = !empty(l:override) ? l:override : l:p.command
+    let l:cmd = l:bin . ' ' . l:p.session_list_cmd
+    call s:open_with_cmd(l:cmd)
+    call circuit#hooks#fire('SessionChange')
+    return
+  endif
   if empty(l:p.resume)
     echo 'vim-circuit: resume not supported by ' . g:circuit_provider
     return

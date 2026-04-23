@@ -167,6 +167,11 @@ arguments. Features unsupported by the active provider print a warning.
                                                       *:CTresume*
 :CTerm resume           Open the interactive session picker. Kills the
 :CTresume               current terminal first if one is running.
+                        For OpenCode, the CLI has no session picker; this
+                        runs the same as |:CTsessions| (`opencode session
+                        list` in a terminal) so you can read session ids,
+                        then start with |:CTerm| and `--session` if needed
+                        (see `opencode --help`).
 
                                                       *:CTcontinue*
 :CTerm continue         Resume the most recent conversation in the current

@@ -83,7 +83,7 @@ let s:providers.gemini = {
 let s:providers.opencode = {
       \ 'command': 'opencode',
       \ 'continue': '--continue',
-      \ 'resume': '--session',
+      \ 'resume': '',
       \ 'model_flag': '--model',
       \ 'permission_flag': '',
       \ 'verbose_flag': '',

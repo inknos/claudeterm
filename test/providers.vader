@@ -40,7 +40,7 @@ Execute (circuit#providers#get returns gemini dict):
 Execute (circuit#providers#get returns opencode dict):
   let p = circuit#providers#get('opencode')
   AssertEqual 'opencode', p.command
-  AssertEqual '--session', p.resume
+  AssertEqual '', p.resume
   AssertEqual 'stats', p.stats_cmd
   AssertEqual 'session list', p.session_list_cmd
   AssertEqual '/undo', p.slash_commands.undo
