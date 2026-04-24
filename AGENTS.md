@@ -190,15 +190,12 @@ block.
 
 ## Testing
 
-The test suite uses [Vader.vim](https://github.com/junegunn/vader.vim), included as
-a git submodule at `test/vader.vim`.
+**Clone, submodule, and `make test` / `make check`:** see the
+**[Development](README.md#development)** section in the project `README.md`
+(never duplicate that in `doc/circuit.txt` — that file is for end users).
 
-### Running tests
-
-```bash
-make test      # runs all .vader files headlessly
-make check     # runs lint + tests
-```
+The test driver is [Vader.vim](https://github.com/junegunn/vader.vim) as a
+submodule at `test/vader.vim`.
 
 ### Test structure
 

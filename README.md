@@ -169,7 +169,35 @@ See `:help circuit-hooks` for details.
 
 Full documentation is available via `:help circuit` after installation.
 
-HTML docs are generated from the vimdoc source and available [here](https://inknos.github.io/vim-circuit).
+HTML docs are generated from the vimdoc source and are available
+[here](https://inknos.github.io/vim-circuit). User-facing help lives in
+`doc/circuit.txt` (Vim help format), not in this file.
+
+## Development
+
+This repository is a normal Vim plugin layout; **running the test suite
+requires the [Vader.vim](https://github.com/junegunn/vader.vim) submodule** at
+`test/vader.vim` (a gitlink, not a copy of the files in the parent tree).
+
+Clone with submodules so `test/vader.vim` is checked out:
+
+```bash
+git clone --recurse-submodules https://github.com/inknos/vim-circuit.git
+# or, if you already cloned without submodules:
+cd vim-circuit && git submodule update --init
+```
+
+Run tests (needs Vim with `+terminal`):
+
+```bash
+make test     # all test/*.vader, headless Vim
+make check    # lint (vint) + test — install: pip install vim-vint
+```
+
+| Path | Role |
+|------|------|
+| `test/vimrc` | Minimal config: plugin + Vader only |
+| `test/*.vader` | Test files (see `AGENTS.md` for naming and how to add cases) |
 
 ## License
 
