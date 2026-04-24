@@ -13,6 +13,9 @@ let s:reload_timer = -1
 let s:current_mode = ''
 let s:current_model = ''
 let s:verbose = 0
+let s:autoread_save = 0
+let s:autoread_armed = 0
+let s:staged_file_ref = ''
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -30,12 +33,68 @@ function! s:get(name, default) abort
   return a:default
 endfunction
 
+function! s:maybe_enable_autoread_for_session() abort
+  if !s:get('autoread_during_session', 0) || s:autoread_armed
+    return
+  endif
+  let s:autoread_save = &autoread
+  set autoread
+  let s:autoread_armed = 1
+endfunction
+
+function! s:maybe_restore_autoread_after_session() abort
+  if !s:autoread_armed
+    return
+  endif
+  let &autoread = s:autoread_save
+  let s:autoread_armed = 0
+endfunction
+
 function! s:git_root() abort
   let l:root = trim(system('git rev-parse --show-toplevel 2>/dev/null'))
   if v:shell_error || empty(l:root)
     return getcwd()
   endif
   return l:root
+endfunction
+
+" Staged ref: `relpath:line` or `relpath:start-end` (relative to git root
+" when |g:circuit_use_git_root| is 1, else to |getcwd()|).
+function! s:ref_path_pretty() abort
+  let l:abs = expand('%:p')
+  if !empty(l:abs)
+    let l:rel = s:relpath_for_file_ref(l:abs)
+  else
+    let l:bn = bufname('%')
+    if !empty(l:bn)
+      let l:rel = s:relpath_for_file_ref(fnamemodify(l:bn, ':p'))
+    else
+      let l:rel = 'buffer' . bufnr('%')
+    endif
+  endif
+  " Normalize to `/` (many CLIs; consistent when Windows yields backslashes)
+  if l:rel =~# '\\'
+    return tr(l:rel, '\', '/')
+  endif
+  return l:rel
+endfunction
+
+function! s:relpath_for_file_ref(abs) abort
+  if s:get('use_git_root', 1)
+    let l:r = s:git_root()
+    if !empty(l:r)
+      if a:abs ==# l:r
+        return '.'
+      endif
+      let l:lr = len(l:r)
+      if len(a:abs) > l:lr
+            \ && (a:abs[l:lr] ==# '/' || a:abs[l:lr] ==# '\')
+            \ && strpart(a:abs, 0, l:lr) ==# l:r
+        return strpart(a:abs, l:lr + 1)
+      endif
+    endif
+  endif
+  return fnamemodify(a:abs, ':.')
 endfunction
 
 function! s:provider() abort
@@ -317,6 +376,7 @@ function! s:cleanup_after_circuit_job_exit() abort
     let s:term_bufnr = -1
     let s:term_winid = -1
     let s:is_zoomed = 0
+    call s:maybe_restore_autoread_after_session()
     return
   endif
   if s:term_alive()
@@ -326,6 +386,7 @@ function! s:cleanup_after_circuit_job_exit() abort
   let s:term_bufnr = -1
   let s:term_winid = -1
   let s:is_zoomed = 0
+  call s:maybe_restore_autoread_after_session()
   call circuit#hooks#fire('TermExited')
 endfunction
 
@@ -337,6 +398,7 @@ function! s:kill_term_if_alive() abort
   let s:term_bufnr = -1
   let s:term_winid = -1
   let s:is_zoomed = 0
+  call s:maybe_restore_autoread_after_session()
 endfunction
 
 function! s:open_with_cmd(cmd) abort
@@ -351,6 +413,7 @@ function! s:open_with_cmd(cmd) abort
   let s:term_winid = win_getid()
 
   call s:configure_term_window()
+  call s:maybe_enable_autoread_for_session()
   call s:start_reload_timer()
   call circuit#hooks#fire('Open')
   call s:focus_term()
@@ -441,6 +504,7 @@ function! circuit#worktree(name, bang) abort
   let s:term_winid = win_getid()
 
   call s:configure_term_window()
+  call s:maybe_enable_autoread_for_session()
   call s:start_reload_timer()
   call circuit#hooks#fire('Worktree')
   call s:focus_term()
@@ -501,13 +565,19 @@ endfunction
 " Send selection
 " ---------------------------------------------------------------------------
 
-function! circuit#send_selection() abort
+function! circuit#send_selection(...) abort
   if !s:term_alive()
     echo 'vim-circuit: no active terminal'
     return
   endif
 
-  let l:lines = getline("'<", "'>")
+  if a:0 >= 2
+    let l:lo = min([a:1, a:2])
+    let l:hi = max([a:1, a:2])
+    let l:lines = getline(l:lo, l:hi)
+  else
+    let l:lines = getline("'<", "'>")
+  endif
   if empty(l:lines)
     return
   endif
@@ -545,6 +615,53 @@ function! circuit#chat() abort
   endif
 
   call term_sendkeys(s:term_bufnr, l:context . l:msg . "\n")
+endfunction
+
+" ---------------------------------------------------------------------------
+" File:line reference (staged, then send from :terminal)
+" ---------------------------------------------------------------------------
+
+function! circuit#stage_ref(line1, line2) abort
+  let l:a = a:line1
+  let l:b = a:line2
+  if l:a > l:b
+    let l:tmp = l:a
+    let l:a = l:b
+    let l:b = l:tmp
+  endif
+  if l:a == l:b
+    let s:staged_file_ref = s:ref_path_pretty() . ':' . l:a
+  else
+    let s:staged_file_ref = s:ref_path_pretty() . ':' . l:a . '-' . l:b
+  endif
+  echo 'vim-circuit: staged ' . s:staged_file_ref
+  call circuit#hooks#fire('ChatRefStaged')
+endfunction
+
+function! circuit#send_staged_ref() abort
+  if empty(s:staged_file_ref)
+    echo 'vim-circuit: no staged file reference; use :CTref (see :help CTref)'
+    return
+  endif
+  if !s:term_alive()
+    echo 'vim-circuit: no active terminal'
+    return
+  endif
+  call term_sendkeys(s:term_bufnr, s:staged_file_ref . "\n")
+  let s:staged_file_ref = ''
+  call circuit#hooks#fire('ChatRefSent')
+endfunction
+
+" Expression mapping for |terminal| mode: send staged `path:l1:l2` and
+" Enter, or fall back to window right (|<C-w>|l).
+function! circuit#terminal_c_l() abort
+  if !empty(s:staged_file_ref) && s:term_alive()
+    call term_sendkeys(s:term_bufnr, s:staged_file_ref . "\n")
+    let s:staged_file_ref = ''
+    call circuit#hooks#fire('ChatRefSent')
+    return ''
+  endif
+  return "\<C-\><C-n><C-w>l"
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -625,6 +742,8 @@ function! s:reload_check(timer_id) abort
   if !s:get('auto_reload', 1)
     return
   endif
+  let l:save_win = win_getid()
+  let l:save_view = winsaveview()
   let l:reloaded = 0
   for l:bufnr in range(1, bufnr('$'))
     if buflisted(l:bufnr) && l:bufnr != s:term_bufnr
@@ -634,12 +753,16 @@ function! s:reload_check(timer_id) abort
       if getftime(l:fname) > getbufvar(l:bufnr, 'circuit_mtime', 0)
         call setbufvar(l:bufnr, 'circuit_mtime', getftime(l:fname))
         if bufloaded(l:bufnr)
-          execute 'checktime ' . l:bufnr
+          silent! execute 'checktime ' . l:bufnr
           let l:reloaded = 1
         endif
       endif
     endif
   endfor
+  if win_id2win(l:save_win) > 0
+    noautocmd call win_gotoid(l:save_win)
+    call winrestview(l:save_view)
+  endif
   if l:reloaded
     if s:get('notify_reload', 1)
       echohl WarningMsg | echo 'vim-circuit: buffers reloaded' | echohl None
@@ -760,7 +883,7 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
   if l:nparts <= 2
     let l:subs = ['resume', 'continue', 'new', 'kill', 'pr', 'worktree',
           \ 'plan', 'fast', 'mode', 'zoom', 'position', 'send', 'chat',
-          \ 'model', 'verbose', 'doctor', 'version',
+          \ 'ref', 'refsend', 'model', 'verbose', 'doctor', 'version',
           \ 'undo', 'redo', 'export', 'stats', 'sessions']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')
   endif

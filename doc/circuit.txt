@@ -226,10 +226,41 @@ support print a warning.
                                                       *:CTsend*
 :CTerm send             Send the current visual selection to the agent
 :CTsend                 terminal. The text is prefixed with the filename.
+:[range]CTsend           As |:CTsend| with a line range: sends those lines.
+                        (Accepts a range so you can use `:'<,'>CTsend` after
+                        a visual selection without |E841|.)
 
                                                       *:CTchat*
 :CTerm chat             Prompt for a free-form message and send it to the
 :CTchat                 agent. Opens the terminal if not visible.
+
+                                                      *:CTref*
+:[range]CTref           Store a line reference to send to the agent TUI. The
+                        string is `relpath:line` for one line, or
+                        `relpath:first-last` (path relative to the git root
+                        when |g:circuit_use_git_root| is `1`, else relative
+                        to the current working directory), e.g. `src/x.py:3`
+                        or `src/x.py:10-20`. The reference is not sent until
+                        you use |:CTrefsend| or
+                        |<C-l>| in the agent |terminal| (see
+                        |g:circuit_tmap_c_l_sends_staged|). With no range, the
+                        current line is used (same for |:CTerm| |ref|).
+
+                                                      *:CTaddtochat*
+:CTaddtochat            Same as |:CTref| (mnemonic: add a reference to the
+                        agent chat). Accepts a |:range| like |:CTref|.
+
+:CTerm ref              Stages a reference for the cursor line (no range
+                        in this form). For a range, use a ranged |:CTref| or
+                        |:CTaddtochat| instead.
+
+                                                      *:CTrefsend*
+:CTerm refsend          Send the staged reference to the running agent
+:CTrefsend              terminal, then clear it. Same as a successful
+                        |<C-l>| in |terminal| mode when a ref is pending.
+:[range]CTrefsend        Ignores the range; accepts one so
+                        `:'<,'>CTrefsend` does not raise |E841| after
+                        a visual selection.
 
 ------------------------------------------------------------------------------
 6.5 Worktree                                         *circuit-worktree*
@@ -310,6 +341,7 @@ variable.
   <leader>cp       From PR         |g:circuit_map_pr|
   <leader>cz       Zoom toggle     |g:circuit_map_zoom|
   <leader>ch       Chat            |g:circuit_map_chat|
+  <leader>ca       Stage file ref  |g:circuit_map_stage_ref|
   <leader>cv       Verbose toggle  |g:circuit_map_verbose|
   <leader>cw       Worktree        |g:circuit_map_worktree|
   <leader>cmp      Mode: plan      |g:circuit_map_mode_plan|
@@ -324,6 +356,7 @@ variable.
 
   Key              Command         Variable ~
   <leader>cs       Send selection  |g:circuit_map_send|
+  <leader>ca       Stage file ref  |g:circuit_map_stage_ref|
 
 ------------------------------------------------------------------------------
 7.3 Terminal Mode                            *circuit-keymaps-terminal*
@@ -335,7 +368,10 @@ These keymaps are active when the cursor is inside any terminal buffer.
   <M-h>            Navigate to window left
   <C-j>            Navigate to window below
   <C-k>            Navigate to window above
-  <C-l>            Navigate to window right
+  <C-l>            If a ref is staged (see |:CTref|), send it to the TUI;
+                   else navigate to window right. See
+                   |g:circuit_tmap_c_l_sends_staged| to always use
+                   window-right and send only via |:CTrefsend|.
   <C-v>            Paste from system clipboard
 
   |<C-h>| is not mapped to window-left by default: in many terminals it is
@@ -351,8 +387,8 @@ These keymaps are active when the cursor is inside any terminal buffer.
   :CTerm <Tab>           Completes subcommands: `resume`, `continue`,
                          `new`, `kill`, `pr`, `worktree`, `plan`,
                          `fast`, `mode`, `zoom`, `position`, `send`,
-                         `chat`, `model`, `verbose`, `doctor`,
-                         `version`, `undo`, `redo`, `export`,
+                         `chat`, `ref`, `refsend`, `model`, `verbose`,
+                         `doctor`, `version`, `undo`, `redo`, `export`,
                          `stats`, `sessions`.
 
   :CTerm mode <Tab>      Completes from the active provider's mode list.
@@ -396,6 +432,9 @@ Available events:
   CTRedo                  Redo slash command sent
   CTExport                Export slash command sent
   CTSessionList           Session list opened
+  CTChatRefStaged         A |:CTref| / |:CTaddtochat| line range was staged
+  CTChatRefSent           Staged reference was sent to the terminal (via
+                          |:CTrefsend| or |<C-l>| in |terminal| mode)
 
 ==============================================================================
 10. Configuration                              *circuit-configuration*
@@ -479,6 +518,24 @@ g:circuit_auto_reload       Number (default: `1`)
                             |g:circuit_notify_reload| only apply when this
                             is `1`.
 
+                                                *g:circuit_autoread_during_session*
+g:circuit_autoread_during_session
+                            Number (default: `0`)
+                            Off by default: does not touch |'autoread'|,
+                            so your |vimrc| and global |'autoread'| are
+                            respected. When `1`, set the global |'autoread'|
+                            the first time a circuit agent terminal is
+                            started in this Vim (|:CT| / |:CTerm|,
+                            |:CTnew|, |:CTworktree|, etc.), and restore
+                            the previous |'autoread'| value when that
+                            session ends (|:CTkill|, the agent process
+                            exits, or you replace the terminal, e.g.
+                            |:CTnew|, |:CTcontinue|). Use when
+                            |'autoread'| is off in your |vimrc| but you
+                            want auto-reload only while a session is
+                            open. |b:circuit_autoread_during_session|
+                            overrides the global in the buffer if set.
+
                                                 *g:circuit_reload_interval*
 g:circuit_reload_interval   Number (default: `1000`)
                             Polling interval in milliseconds for the
@@ -489,6 +546,16 @@ g:circuit_reload_interval   Number (default: `1000`)
                                                 *g:circuit_notify_reload*
 g:circuit_notify_reload     Number (default: `1`)
                             Echo a notification when buffers are reloaded.
+
+                                                *g:circuit_checktime_on_bufenter*
+g:circuit_checktime_on_bufenter
+                            Number (default: `1`)
+                            When `1` and |g:circuit_auto_reload| is on, run
+                            |:checktime| on |FocusGained| and |BufEnter|. Set
+                            to `0` to use only the timer for mtime reloads, if
+                            focus/buffer events cause unwanted redraws or
+                            cursor flicker while a |:terminal| (e.g. the agent
+                            TUI) is open in a split.
 
 ------------------------------------------------------------------------------
 10.3 Keymaps                                  *circuit-config-keymaps*
@@ -512,6 +579,24 @@ g:circuit_tmap_ch_left      Number (default: `0`)
                             because |<C-h>| matches Ctrl+Backspace in
                             many terminals and breaks line editing in
                             some agent CLIs.
+
+                                                *g:circuit_tmap_c_l_sends_staged*
+g:circuit_tmap_c_l_sends_staged
+                            Number (default: `1`)
+                            When `1` and |g:circuit_map_keys| is on, |<C-l>|
+                            in the agent |terminal| sends a staged
+                            `relpath:line` or `relpath:first-last` (see
+                            |:CTref|) if one is
+                            pending; otherwise it runs |<C-w>|l. Set to `0`
+                            to always use |<C-w>|l and add references only
+                            with |:CTrefsend| (e.g. if the agent TUI needs
+                            raw |<C-l>|).
+
+                                                *g:circuit_map_stage_ref*
+g:circuit_map_stage_ref     String (default: `'<leader>ca'`)
+                            Normal mode: stage the current line; visual
+                            mode: stage the line range. Same as |:CTref| with
+                            the proper range.
 
 ------------------------------------------------------------------------------
 10.4 Display                                  *circuit-config-display*
@@ -570,6 +655,18 @@ Ctrl+Backspace in the agent TUI jumps to another window~
   |<C-h>|. The default maps |<M-h>| to "window left" in |terminal| mode
   (not |<C-h>|). See |g:circuit_tmap_ch_left| if you need the old
   |<C-h>| window-left mapping.
+
+Cursor flickers in the text window while the agent runs~
+  A busy |:terminal| in a split often forces full-screen redraws; Vim
+  cannot always isolate updates to the terminal window. The plugin
+  also runs a timer (see |g:circuit_reload_interval|) and optional
+  |:checktime| on focus/buffer change (|g:circuit_checktime_on_bufenter|);
+  these can add minor redraws. Try, in your |vimrc|:
+  `set lazyredraw`, or `let g:circuit_checktime_on_bufenter = 0`, or
+  `let g:circuit_notify_reload = 0` (or `g:circuit_auto_reload = 0` if
+  you can live without auto-reload while a session is open; exit
+  detection in the same timer still runs), or a longer
+  |g:circuit_reload_interval|.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

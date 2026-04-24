@@ -185,6 +185,8 @@ block.
 | Model | `circuit#set_model()` | `model` | `:CTmodel` | — |
 | Undo | `circuit#undo()` | `undo` | `:CTundo` | `g:circuit_map_undo` |
 | Sessions | `circuit#sessions()` | `sessions` | `:CTsessions` | `g:circuit_map_sessions` |
+| Stage file:line ref | `circuit#stage_ref()` | `ref` (also `:CTref` w/ range) | `:CTref` / `:CTaddtochat` | `g:circuit_map_stage_ref` |
+| Send staged ref | `circuit#send_staged_ref()` | `refsend` | `:CTrefsend` | terminal `<C-l>` (if `g:circuit_tmap_c_l_sends_staged`) |
 
 ## Testing
 

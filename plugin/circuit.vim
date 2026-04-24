@@ -38,6 +38,14 @@ let g:circuit_map_keys         = get(g:, 'circuit_map_keys', 1)
 " When 1, tnoremap <C-h> to window left (conflicts with Ctrl+Backspace in
 " many CLIs, which also sends ^H). Default 0: use <M-h> for left instead.
 let g:circuit_tmap_ch_left     = get(g:, 'circuit_tmap_ch_left', 0)
+" In |terminal| mode, |<C-l>|: when a file ref is staged (see |:CTref|),
+" send it to the TUI; otherwise |<C-w>|l. Set to `0` to always use
+" |<C-w>|l and send via |:CTrefsend| only.
+let g:circuit_tmap_c_l_sends_staged = get(g:, 'circuit_tmap_c_l_sends_staged', 1)
+" When 0, do not run |:checktime| on FocusGained/BufEnter (only the timer
+" may reload files). Can reduce cursor/redraw flicker with a busy :terminal.
+let g:circuit_checktime_on_bufenter = get(g:, 'circuit_checktime_on_bufenter', 1)
+let g:circuit_autoread_during_session = get(g:, 'circuit_autoread_during_session', 0)
 
 " Keymap variables (all overridable)
 let g:circuit_map_toggle       = get(g:, 'circuit_map_toggle', '<leader>c')
@@ -49,6 +57,7 @@ let g:circuit_map_pr           = get(g:, 'circuit_map_pr', '<leader>cp')
 let g:circuit_map_zoom         = get(g:, 'circuit_map_zoom', '<leader>cz')
 let g:circuit_map_zoom_term    = get(g:, 'circuit_map_zoom_term', '<C-w>z')
 let g:circuit_map_send         = get(g:, 'circuit_map_send', '<leader>cs')
+let g:circuit_map_stage_ref    = get(g:, 'circuit_map_stage_ref', '<leader>ca')
 let g:circuit_map_chat         = get(g:, 'circuit_map_chat', '<leader>ch')
 let g:circuit_map_verbose      = get(g:, 'circuit_map_verbose', '<leader>cv')
 let g:circuit_map_mode_plan    = get(g:, 'circuit_map_mode_plan', '<leader>cmp')
@@ -81,7 +90,10 @@ command! -nargs=1 CTmodel    call circuit#set_model(<f-args>)
 command! -nargs=0 CTverbose  call circuit#toggle_verbose()
 command! -nargs=0 CTdoctor   call circuit#doctor()
 command! -nargs=0 CTversion  call circuit#version()
-command! -nargs=0 CTsend     call circuit#send_selection()
+command! -nargs=0 -range   CTsend     call circuit#send_selection(<line1>, <line2>)
+command! -range -nargs=0 CTref        call circuit#stage_ref(<line1>, <line2>)
+command! -range -nargs=0 CTaddtochat  call circuit#stage_ref(<line1>, <line2>)
+command! -nargs=0 -range   CTrefsend  call circuit#send_staged_ref()
 command! -nargs=0 CTchat     call circuit#chat()
 command! -nargs=? -bang CTworktree call circuit#worktree(<q-args>, <bang>0)
 command! -nargs=0 CTundo     call circuit#undo()
@@ -112,6 +124,10 @@ function! s:dispatch(...) abort
     call circuit#zoom()
   elseif l:cmd ==# 'send'
     call circuit#send_selection()
+  elseif l:cmd ==# 'ref'
+    call circuit#stage_ref(line('.'), line('.'))
+  elseif l:cmd ==# 'refsend'
+    call circuit#send_staged_ref()
   elseif l:cmd ==# 'chat'
     call circuit#chat()
   elseif l:cmd ==# 'verbose'
@@ -177,7 +193,12 @@ if g:circuit_map_keys
   execute 'tnoremap <silent> ' . g:circuit_map_zoom_term . ' <C-\><C-n>:call circuit#zoom()<CR>'
 
   " Code context
-  execute 'vnoremap <silent> ' . g:circuit_map_send     . " :<C-u>call circuit#send_selection()<CR>"
+  execute 'vnoremap <silent> ' . g:circuit_map_send
+        \ . " :CTsend<CR>"
+  execute 'nnoremap <silent> ' . g:circuit_map_stage_ref
+        \ . " :.CTref<CR>"
+  execute 'vnoremap <silent> ' . g:circuit_map_stage_ref
+        \ . " :CTref<CR>"
   execute 'nnoremap <silent> ' . g:circuit_map_chat     . ' :call circuit#chat()<CR>'
 
   " Verbose
@@ -204,7 +225,11 @@ if g:circuit_map_keys
   tnoremap <silent> <M-h> <C-\><C-n><C-w>h
   tnoremap <silent> <C-j> <C-\><C-n><C-w>j
   tnoremap <silent> <C-k> <C-\><C-n><C-w>k
-  tnoremap <silent> <C-l> <C-\><C-n><C-w>l
+  if get(g:, 'circuit_tmap_c_l_sends_staged', 1)
+    tnoremap <expr> <C-l> circuit#terminal_c_l()
+  else
+    tnoremap <silent> <C-l> <C-\><C-n><C-w>l
+  endif
   tnoremap <silent> <C-v> <C-\><C-n>"+pi
 endif
 
@@ -214,7 +239,7 @@ endif
 
 augroup circuit_autoread
   autocmd!
-  autocmd FocusGained,BufEnter * if get(g:, 'circuit_auto_reload', 1) | checktime | endif
+  autocmd FocusGained,BufEnter * if get(g:, 'circuit_checktime_on_bufenter', 1) && get(g:, 'circuit_auto_reload', 1) | checktime | endif
 augroup END
 
 if has('terminal') && exists('##TermClose')

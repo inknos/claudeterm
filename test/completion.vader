@@ -14,6 +14,8 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'position') >= 0
   Assert index(result, 'send') >= 0
   Assert index(result, 'chat') >= 0
+  Assert index(result, 'ref') >= 0
+  Assert index(result, 'refsend') >= 0
   Assert index(result, 'verbose') >= 0
   Assert index(result, 'doctor') >= 0
   Assert index(result, 'version') >= 0
