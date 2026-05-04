@@ -17,7 +17,7 @@ let s:autoread_save = 0
 let s:autoread_armed = 0
 let s:staged_file_refs = []
 let s:plan_bufnr = -1
-let s:pre_plan_winrestcmd = ''
+let s:pre_plan_bufnr = -1
 let s:prompt_winid = -1
 let s:prompt_text = ''
 let s:prompt_matches = []
@@ -476,27 +476,6 @@ function! s:latest_plan_file(dir) abort
   return l:best
 endfunction
 
-function! s:open_plan_split() abort
-  let l:pos = s:get('plan_position', 'left')
-  let l:ratio = s:get('split_ratio', 0.4)
-  if l:pos ==# 'left'
-    let l:size = float2nr(&columns * l:ratio)
-    execute 'vertical topleft ' . l:size . 'new'
-  elseif l:pos ==# 'right'
-    let l:size = float2nr(&columns * l:ratio)
-    execute 'vertical botright ' . l:size . 'new'
-  elseif l:pos ==# 'top'
-    let l:size = float2nr(&lines * l:ratio)
-    execute 'topleft ' . l:size . 'new'
-  elseif l:pos ==# 'bottom'
-    let l:size = float2nr(&lines * l:ratio)
-    execute 'botright ' . l:size . 'new'
-  else
-    let l:size = float2nr(&columns * l:ratio)
-    execute 'vertical topleft ' . l:size . 'new'
-  endif
-endfunction
-
 function! circuit#plan_open() abort
   if s:needs_provider()
     return
@@ -513,27 +492,21 @@ function! circuit#plan_open() abort
   let l:p = s:provider()
   let l:plan_file = ''
   if !empty(l:p.plan_dir)
-    let l:plan_file = s:latest_plan_file(l:p.plan_dir)
+    let l:dir = l:p.plan_dir
+    if l:dir[0] !=# '/' && l:dir[0] !=# '~'
+      let l:dir = s:git_root() . '/' . l:dir
+    endif
+    let l:plan_file = s:latest_plan_file(l:dir)
   endif
 
-  let s:pre_plan_winrestcmd = winrestcmd()
+  let s:pre_plan_bufnr = bufnr('%')
 
-  if s:get('plan_position', 'left') ==# 'tab'
-    if !empty(l:plan_file)
-      execute 'tabedit ' . fnameescape(l:plan_file)
-    else
-      tabnew
-      setlocal buftype=nofile filetype=markdown
-      file [circuit-plan]
-    endif
+  if !empty(l:plan_file)
+    execute 'edit ' . fnameescape(l:plan_file)
   else
-    call s:open_plan_split()
-    if !empty(l:plan_file)
-      execute 'edit ' . fnameescape(l:plan_file)
-    else
-      setlocal buftype=nofile filetype=markdown
-      file [circuit-plan]
-    endif
+    enew
+    setlocal buftype=nofile filetype=markdown
+    file [circuit-plan]
   endif
 
   setlocal autoread
@@ -584,15 +557,18 @@ function! circuit#plan_close() abort
 
   let l:winid = bufwinid(s:plan_bufnr)
   if l:winid != -1
-    let l:winnr = win_id2win(l:winid)
-    execute l:winnr . 'wincmd w'
-    quit
+    call win_gotoid(l:winid)
   endif
 
-  if !empty(s:pre_plan_winrestcmd)
-    execute s:pre_plan_winrestcmd
-    let s:pre_plan_winrestcmd = ''
+  if s:pre_plan_bufnr != -1 && bufexists(s:pre_plan_bufnr)
+    execute 'buffer ' . s:pre_plan_bufnr
+  else
+    enew
   endif
+
+  execute 'bdelete ' . s:plan_bufnr
+  let s:plan_bufnr = -1
+  let s:pre_plan_bufnr = -1
   call circuit#hooks#fire('PlanClose')
 endfunction
 

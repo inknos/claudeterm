@@ -100,10 +100,10 @@ let s:providers.opencode = {
       \ 'doctor_cmd': '',
       \ 'stats_cmd': 'stats',
       \ 'session_list_cmd': 'session list',
-      \ 'modes': [],
+      \ 'modes': ['plan'],
       \ 'mode_prefix': '/',
       \ 'models': [],
-      \ 'plan_dir': '',
+      \ 'plan_dir': '.opencode/plans',
       \ 'exit_plan_cmd': '',
       \ 'slash_commands': {
       \   'undo': '/undo',

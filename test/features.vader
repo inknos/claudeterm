@@ -182,10 +182,10 @@ Execute (agent provider has empty plan_dir):
   Assert empty(prov.plan_dir), 'agent should have empty plan_dir'
   let g:circuit_provider = 'claude'
 
-Execute (opencode provider has empty plan_dir and exit_plan_cmd):
+Execute (opencode provider has plan_dir set to .opencode/plans):
   let g:circuit_provider = 'opencode'
   let prov = circuit#providers#current()
-  Assert empty(prov.plan_dir)
+  AssertEqual '.opencode/plans', prov.plan_dir
   Assert empty(prov.exit_plan_cmd)
   let g:circuit_provider = 'claude'
 
