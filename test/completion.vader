@@ -67,10 +67,10 @@ Execute (mode completion returns agent modes):
   let result = circuit#complete('f', 'CTerm mode f', 12)
   AssertEqual [], result
 
-Execute (mode completion returns empty for opencode):
+Execute (mode completion returns plan for opencode):
   let g:circuit_provider = 'opencode'
   let result = circuit#complete('p', 'CTerm mode p', 12)
-  AssertEqual [], result
+  Assert index(result, 'plan') >= 0
   let g:circuit_provider = 'claude'
 
 Execute (model completion returns claude models):
