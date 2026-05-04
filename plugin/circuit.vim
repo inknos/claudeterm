@@ -27,6 +27,9 @@ let g:circuit_model            = get(g:, 'circuit_model', '')
 let g:circuit_extra_args       = get(g:, 'circuit_extra_args', '')
 let g:circuit_worktree_tmux    = get(g:, 'circuit_worktree_tmux', 0)
 
+let g:circuit_plan_position    = get(g:, 'circuit_plan_position', 'left')
+let g:circuit_plan_close_on_exec = get(g:, 'circuit_plan_close_on_exec', 1)
+
 let g:circuit_auto_reload      = get(g:, 'circuit_auto_reload', 1)
 let g:circuit_reload_interval  = get(g:, 'circuit_reload_interval', 1000)
 let g:circuit_notify_reload    = get(g:, 'circuit_notify_reload', 1)
@@ -67,6 +70,8 @@ let g:circuit_map_undo         = get(g:, 'circuit_map_undo', '<leader>cu')
 let g:circuit_map_redo         = get(g:, 'circuit_map_redo', '<leader>cU')
 let g:circuit_map_export       = get(g:, 'circuit_map_export', '<leader>ce')
 let g:circuit_map_sessions     = get(g:, 'circuit_map_sessions', '<leader>cl')
+let g:circuit_map_plan_open    = get(g:, 'circuit_map_plan_open', '<leader>cpo')
+let g:circuit_map_plan_exec    = get(g:, 'circuit_map_plan_exec', '<leader>cpx')
 let g:circuit_map_refsend      = get(g:, 'circuit_map_refsend', '<C-l>')
 
 " ---------------------------------------------------------------------------
@@ -84,9 +89,12 @@ command! -nargs=0 CTnew      call circuit#new()
 command! -nargs=0 CTkill     call circuit#kill()
 command! -nargs=0 CTpr       call circuit#from_pr()
 command! -nargs=0 CTzoom     call circuit#zoom()
-command! -nargs=0 CTplan     call circuit#set_mode('plan')
-command! -nargs=0 CTfast     call circuit#set_mode('fast')
-command! -nargs=0 CTnormal   call circuit#set_mode('plan')
+command! -nargs=0 CTplan      call circuit#set_mode('plan')
+command! -nargs=0 CTfast      call circuit#set_mode('fast')
+command! -nargs=0 CTnormal    call circuit#set_mode('normal')
+command! -nargs=0 CTplanopen  call circuit#plan_open()
+command! -nargs=0 CTplanexec  call circuit#plan_exec()
+command! -nargs=0 CTplanclose call circuit#plan_close()
 command! -nargs=1 CTmodel    call circuit#set_model(<f-args>)
 command! -nargs=0 CTverbose  call circuit#toggle_verbose()
 command! -nargs=0 CTdoctor   call circuit#doctor()
@@ -147,6 +155,12 @@ function! s:dispatch(...) abort
     call circuit#set_mode('plan')
   elseif l:cmd ==# 'fast'
     call circuit#set_mode('fast')
+  elseif l:cmd ==# 'planopen'
+    call circuit#plan_open()
+  elseif l:cmd ==# 'planexec'
+    call circuit#plan_exec()
+  elseif l:cmd ==# 'planclose'
+    call circuit#plan_close()
   elseif l:cmd ==# 'mode'
     if a:0 >= 2
       call circuit#set_mode(a:2)
@@ -216,6 +230,10 @@ if g:circuit_map_keys
   " Mode control (sends /plan or /fast slash commands to the session)
   execute 'nnoremap <silent> ' . g:circuit_map_mode_plan . " :call circuit#set_mode('plan')<CR>"
   execute 'nnoremap <silent> ' . g:circuit_map_mode_fast . " :call circuit#set_mode('fast')<CR>"
+
+  " Plan workflow
+  execute 'nnoremap <silent> ' . g:circuit_map_plan_open . ' :call circuit#plan_open()<CR>'
+  execute 'nnoremap <silent> ' . g:circuit_map_plan_exec . ' :call circuit#plan_exec()<CR>'
 
   " Worktree
   execute 'nnoremap <silent> ' . g:circuit_map_worktree    . " :call circuit#worktree('', 0)<CR>"

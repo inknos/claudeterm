@@ -16,6 +16,8 @@ let s:verbose = 0
 let s:autoread_save = 0
 let s:autoread_armed = 0
 let s:staged_file_refs = []
+let s:plan_bufnr = -1
+let s:pre_plan_winrestcmd = ''
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -445,6 +447,148 @@ function! circuit#set_mode(mode) abort
   call term_sendkeys(s:term_bufnr, l:p.mode_prefix . a:mode . "\n")
   let s:current_mode = a:mode
   call circuit#hooks#fire('ModeChange')
+endfunction
+
+" ---------------------------------------------------------------------------
+" Plan workflow (open / exec / close)
+" ---------------------------------------------------------------------------
+
+function! s:latest_plan_file(dir) abort
+  let l:expanded = expand(a:dir)
+  let l:files = glob(l:expanded . '/*.md', 0, 1)
+  if empty(l:files)
+    return ''
+  endif
+  let l:best = l:files[0]
+  let l:best_t = getftime(l:best)
+  for l:f in l:files[1:]
+    let l:t = getftime(l:f)
+    if l:t > l:best_t
+      let l:best = l:f
+      let l:best_t = l:t
+    endif
+  endfor
+  return l:best
+endfunction
+
+function! s:open_plan_split() abort
+  let l:pos = s:get('plan_position', 'left')
+  let l:ratio = s:get('split_ratio', 0.4)
+  if l:pos ==# 'left'
+    let l:size = float2nr(&columns * l:ratio)
+    execute 'vertical topleft ' . l:size . 'new'
+  elseif l:pos ==# 'right'
+    let l:size = float2nr(&columns * l:ratio)
+    execute 'vertical botright ' . l:size . 'new'
+  elseif l:pos ==# 'top'
+    let l:size = float2nr(&lines * l:ratio)
+    execute 'topleft ' . l:size . 'new'
+  elseif l:pos ==# 'bottom'
+    let l:size = float2nr(&lines * l:ratio)
+    execute 'botright ' . l:size . 'new'
+  else
+    let l:size = float2nr(&columns * l:ratio)
+    execute 'vertical topleft ' . l:size . 'new'
+  endif
+endfunction
+
+function! circuit#plan_open() abort
+  if s:needs_provider()
+    return
+  endif
+
+  if s:plan_bufnr != -1 && bufexists(s:plan_bufnr)
+    let l:winid = bufwinid(s:plan_bufnr)
+    if l:winid != -1
+      call win_gotoid(l:winid)
+      return
+    endif
+  endif
+
+  let l:p = s:provider()
+  let l:plan_file = ''
+  if !empty(l:p.plan_dir)
+    let l:plan_file = s:latest_plan_file(l:p.plan_dir)
+  endif
+
+  let s:pre_plan_winrestcmd = winrestcmd()
+
+  if s:get('plan_position', 'left') ==# 'tab'
+    if !empty(l:plan_file)
+      execute 'tabedit ' . fnameescape(l:plan_file)
+    else
+      tabnew
+      setlocal buftype=nofile filetype=markdown
+      file [circuit-plan]
+    endif
+  else
+    call s:open_plan_split()
+    if !empty(l:plan_file)
+      execute 'edit ' . fnameescape(l:plan_file)
+    else
+      setlocal buftype=nofile filetype=markdown
+      file [circuit-plan]
+    endif
+  endif
+
+  setlocal autoread
+  let s:plan_bufnr = bufnr('%')
+  call circuit#hooks#fire('PlanOpen')
+endfunction
+
+function! circuit#plan_exec() abort
+  if s:needs_provider()
+    return
+  endif
+  if s:plan_bufnr == -1 || !bufexists(s:plan_bufnr)
+    echo 'vim-circuit: no plan buffer open (use :CTplanopen)'
+    return
+  endif
+  if !s:term_alive()
+    echo 'vim-circuit: no active terminal'
+    return
+  endif
+
+  let l:lines = getbufline(s:plan_bufnr, 1, '$')
+  let l:text = join(l:lines, "\n")
+  if empty(trim(l:text))
+    echo 'vim-circuit: plan buffer is empty'
+    return
+  endif
+
+  let l:p = s:provider()
+  if s:current_mode ==# 'plan' && !empty(l:p.exit_plan_cmd)
+    call term_sendkeys(s:term_bufnr,
+          \ l:p.mode_prefix . l:p.exit_plan_cmd . "\n")
+    let s:current_mode = l:p.exit_plan_cmd
+  endif
+
+  call term_sendkeys(s:term_bufnr, "Execute this plan:\n" . l:text . "\n")
+  call circuit#hooks#fire('PlanExec')
+
+  if s:get('plan_close_on_exec', 1)
+    call circuit#plan_close()
+  endif
+endfunction
+
+function! circuit#plan_close() abort
+  if s:plan_bufnr == -1 || !bufexists(s:plan_bufnr)
+    echo 'vim-circuit: no plan buffer to close'
+    return
+  endif
+
+  let l:winid = bufwinid(s:plan_bufnr)
+  if l:winid != -1
+    let l:winnr = win_id2win(l:winid)
+    execute l:winnr . 'wincmd w'
+    quit
+  endif
+
+  if !empty(s:pre_plan_winrestcmd)
+    execute s:pre_plan_winrestcmd
+    let s:pre_plan_winrestcmd = ''
+  endif
+  call circuit#hooks#fire('PlanClose')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -918,7 +1062,7 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
           \ 'plan', 'fast', 'mode', 'zoom', 'position', 'send', 'chat',
           \ 'ref', 'refsend', 'refclear', 'reflist', 'model', 'verbose',
           \ 'doctor', 'version', 'undo', 'redo', 'export', 'stats',
-          \ 'sessions']
+          \ 'sessions', 'planopen', 'planexec', 'planclose']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')
   endif
 

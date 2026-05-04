@@ -144,3 +144,54 @@ Execute (export with opencode warns about no terminal, not unsupported):
   Assert output =~# 'no active terminal'
   Assert output !~# 'not supported'
   let g:circuit_provider = 'claude'
+
+Execute (plan_open with claude opens a buffer):
+  let g:circuit_provider = 'claude'
+  call circuit#plan_open()
+  Assert bufexists(bufnr('%'))
+  silent! bwipeout!
+
+Execute (plan_exec warns with no plan buffer):
+  let g:circuit_provider = 'claude'
+  redir => output
+  silent call circuit#plan_exec()
+  redir END
+  Assert output =~# 'no plan buffer'
+
+Execute (plan_close warns with no plan buffer):
+  let g:circuit_provider = 'claude'
+  redir => output
+  silent call circuit#plan_close()
+  redir END
+  Assert output =~# 'no plan buffer'
+
+Execute (claude provider has plan_dir set):
+  let g:circuit_provider = 'claude'
+  let prov = circuit#providers#current()
+  Assert !empty(prov.plan_dir), 'claude should have plan_dir set'
+  AssertEqual '~/.claude/plans', prov.plan_dir
+
+Execute (claude provider has exit_plan_cmd set):
+  let g:circuit_provider = 'claude'
+  let prov = circuit#providers#current()
+  AssertEqual 'normal', prov.exit_plan_cmd
+
+Execute (agent provider has empty plan_dir):
+  let g:circuit_provider = 'agent'
+  let prov = circuit#providers#current()
+  Assert empty(prov.plan_dir), 'agent should have empty plan_dir'
+  let g:circuit_provider = 'claude'
+
+Execute (opencode provider has empty plan_dir and exit_plan_cmd):
+  let g:circuit_provider = 'opencode'
+  let prov = circuit#providers#current()
+  Assert empty(prov.plan_dir)
+  Assert empty(prov.exit_plan_cmd)
+  let g:circuit_provider = 'claude'
+
+Execute (gemini provider has empty plan_dir and exit_plan_cmd):
+  let g:circuit_provider = 'gemini'
+  let prov = circuit#providers#current()
+  Assert empty(prov.plan_dir)
+  Assert empty(prov.exit_plan_cmd)
+  let g:circuit_provider = 'claude'

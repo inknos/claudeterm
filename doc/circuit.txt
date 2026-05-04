@@ -23,7 +23,8 @@ CONTENTS                                              *circuit-contents*
      6.8 Export .......................... |circuit-export|
      6.9 Stats .......................... |circuit-stats|
      6.10 Session List ................... |circuit-sessions|
-     6.11 Utility ........................ |circuit-utility|
+     6.11 Plan Workflow .................. |circuit-plan-workflow|
+     6.12 Utility ........................ |circuit-utility|
   7. Keymaps .............................. |circuit-keymaps|
      7.1 Normal Mode ..................... |circuit-keymaps-normal|
      7.2 Visual Mode ..................... |circuit-keymaps-visual|
@@ -88,6 +89,7 @@ Feature matrix:                            *circuit-provider-features*
   Worktree                  ✓       ✓      ✓       —
   From PR                   ✓       —      —       —
   Interactive modes         ✓       ✓      —       —
+  Plan workflow             ✓       —      —       —
   Health check              ✓       ✓      —       —
   Undo/redo                 —       —      —       ✓
   Export                    —       —      —       ✓
@@ -332,6 +334,47 @@ support print a warning.
 :CTsessions             providers without a session list command, falls
                         back to |:CTresume|.
 
+------------------------------------------------------------------------------
+6.11 Plan Workflow                              *circuit-plan-workflow*
+
+The plan workflow lets you review and edit the agent's plan in a
+normal Vim buffer before executing it. The agent writes the plan to
+disk (e.g. Claude Code writes to `~/.claude/plans/`); vim-circuit
+opens it alongside the terminal for side-by-side editing.
+
+Typical session: >
+  :CTplan                " CLI enters plan mode
+  " (give the agent a task in the terminal)
+  " (agent produces a plan, writes it to disk)
+  :CTplanopen            " plan file opens in a split
+  " (review, edit, or refine via the agent)
+  :CTplanexec            " send plan for execution
+<
+
+Providers without a `plan_dir` (Gemini, OpenCode) open an empty
+scratch buffer as a fallback.
+
+                                                      *:CTplanopen*
+:CTerm planopen         Open the most recent plan file from the provider's
+:CTplanopen             plan directory in a Vim buffer. Layout controlled
+                        by |g:circuit_plan_position|. Sets |'autoread'|
+                        on the buffer. If already open, focuses it.
+                        Providers without a plan directory open an empty
+                        scratch buffer.
+
+                                                      *:CTplanexec*
+:CTerm planexec         Read the plan buffer and send its contents to the
+:CTplanexec             agent terminal as a prompt. If the CLI is in plan
+                        mode and the provider has an `exit_plan_cmd`, sends
+                        the exit command first (e.g. `/normal` for Claude).
+                        Closes the plan buffer afterward unless
+                        |g:circuit_plan_close_on_exec| is `0`.
+
+                                                      *:CTplanclose*
+:CTerm planclose        Close the plan buffer window and restore the
+:CTplanclose            previous window layout. Does not delete the file;
+                        reopen with |:CTplanopen|.
+
 ==============================================================================
 7. Keymaps                                           *circuit-keymaps*
 
@@ -356,6 +399,8 @@ variable.
   <leader>cw       Worktree        |g:circuit_map_worktree|
   <leader>cmp      Mode: plan      |g:circuit_map_mode_plan|
   <leader>cmf      Mode: fast      |g:circuit_map_mode_fast|
+  <leader>cpo      Plan open       |g:circuit_map_plan_open|
+  <leader>cpx      Plan exec       |g:circuit_map_plan_exec|
   <leader>cu       Undo            |g:circuit_map_undo|
   <leader>cU       Redo            |g:circuit_map_redo|
   <leader>ce       Export          |g:circuit_map_export|
@@ -401,7 +446,8 @@ These keymaps are active when the cursor is inside any terminal buffer.
                          `chat`, `ref`, `refsend`, `refclear`,
                          `reflist`, `model`, `verbose`, `doctor`,
                          `version`, `undo`, `redo`, `export`, `stats`,
-                         `sessions`.
+                         `sessions`, `planopen`, `planexec`,
+                         `planclose`.
 
   :CTerm mode <Tab>      Completes from the active provider's mode list.
                          E.g. `plan`, `fast`, `normal` for Claude;
@@ -448,6 +494,9 @@ Available events:
   CTChatRefSent           Staged refs were sent to the terminal (via
                           |:CTrefsend| or |<C-l>| in |terminal| mode)
   CTChatRefCleared        Staged refs cleared (via |:CTrefclear|)
+  CTPlanOpen              Plan buffer opened (|:CTplanopen|)
+  CTPlanExec              Plan sent for execution (|:CTplanexec|)
+  CTPlanClose             Plan buffer closed (|:CTplanclose|)
 
 ==============================================================================
 10. Configuration                              *circuit-configuration*
@@ -517,6 +566,18 @@ g:circuit_worktree_tmux     Number (default: `0`)
                             provider's tmux flag. Can also be toggled
                             per-call with `:CTworktree!`.
 
+                                                *g:circuit_plan_position*
+g:circuit_plan_position     String (default: `'left'`)
+                            Where to open the plan buffer: `'left'`,
+                            `'right'`, `'top'`, `'bottom'`, `'tab'`.
+
+                                                *g:circuit_plan_close_on_exec*
+g:circuit_plan_close_on_exec
+                            Number (default: `1`)
+                            When `1`, |:CTplanexec| closes the plan
+                            buffer after sending the plan. Set to `0`
+                            to keep the plan buffer open.
+
 ------------------------------------------------------------------------------
 10.2 Auto-Reload                               *circuit-config-reload*
 
@@ -583,6 +644,14 @@ list. Example override:
   let g:circuit_map_toggle = '<F5>'
   let g:circuit_map_zoom = '<leader>z'
 <
+
+                                                *g:circuit_map_plan_open*
+g:circuit_map_plan_open     String (default: `'<leader>cpo'`)
+                            Keymap for |:CTplanopen|.
+
+                                                *g:circuit_map_plan_exec*
+g:circuit_map_plan_exec     String (default: `'<leader>cpx'`)
+                            Keymap for |:CTplanexec|.
 
                                                 *g:circuit_tmap_ch_left*
 g:circuit_tmap_ch_left      Number (default: `0`)

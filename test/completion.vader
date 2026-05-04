@@ -26,6 +26,9 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'export') >= 0
   Assert index(result, 'stats') >= 0
   Assert index(result, 'sessions') >= 0
+  Assert index(result, 'planopen') >= 0
+  Assert index(result, 'planexec') >= 0
+  Assert index(result, 'planclose') >= 0
 
 Execute (subcommand completion filters by prefix):
   let result = circuit#complete('re', 'CTerm re', 8)
@@ -35,6 +38,15 @@ Execute (subcommand completion filters by prefix):
   Assert index(result, 'refclear') >= 0
   Assert index(result, 'reflist') >= 0
   Assert index(result, 'kill') < 0
+
+Execute (subcommand completion filters plan subcommands by prefix):
+  let result = circuit#complete('plano', 'CTerm plano', 11)
+  Assert index(result, 'planopen') >= 0
+  Assert index(result, 'planexec') < 0
+  let result2 = circuit#complete('plane', 'CTerm plane', 11)
+  Assert index(result2, 'planexec') >= 0
+  let result3 = circuit#complete('planc', 'CTerm planc', 11)
+  Assert index(result3, 'planclose') >= 0
 
 Execute (mode completion returns claude modes):
   let g:circuit_provider = 'claude'

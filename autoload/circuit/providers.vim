@@ -25,6 +25,8 @@ let s:providers.claude = {
       \ 'modes': ['plan', 'fast', 'normal'],
       \ 'mode_prefix': '/',
       \ 'models': ['sonnet', 'opus', 'haiku'],
+      \ 'plan_dir': '~/.claude/plans',
+      \ 'exit_plan_cmd': 'normal',
       \ 'slash_commands': {
       \   'undo': '',
       \   'redo': '',
@@ -49,6 +51,8 @@ let s:providers.agent = {
       \ 'modes': ['plan', 'ask'],
       \ 'mode_prefix': '/',
       \ 'models': [],
+      \ 'plan_dir': '',
+      \ 'exit_plan_cmd': '',
       \ 'slash_commands': {
       \   'undo': '',
       \   'redo': '',
@@ -73,6 +77,8 @@ let s:providers.gemini = {
       \ 'modes': [],
       \ 'mode_prefix': '/',
       \ 'models': ['pro', 'flash', 'flash-lite'],
+      \ 'plan_dir': '',
+      \ 'exit_plan_cmd': '',
       \ 'slash_commands': {
       \   'undo': '',
       \   'redo': '',
@@ -97,6 +103,8 @@ let s:providers.opencode = {
       \ 'modes': [],
       \ 'mode_prefix': '/',
       \ 'models': [],
+      \ 'plan_dir': '',
+      \ 'exit_plan_cmd': '',
       \ 'slash_commands': {
       \   'undo': '/undo',
       \   'redo': '/redo',
