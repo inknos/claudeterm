@@ -408,14 +408,37 @@ function! s:kill_term_if_alive() abort
   call s:maybe_restore_autoread_after_session()
 endfunction
 
+function! s:set_provider_env() abort
+  let l:p = s:provider()
+  let l:saved = {}
+  for [l:k, l:v] in items(get(l:p, 'env', {}))
+    let l:saved[l:k] = exists('$' . l:k) ? eval('$' . l:k) : v:null
+    execute 'let $' . l:k . ' = ' . string(l:v)
+  endfor
+  return l:saved
+endfunction
+
+function! s:restore_env(saved) abort
+  for [l:k, l:v] in items(a:saved)
+    if l:v is v:null
+      execute 'unlet $' . l:k
+    else
+      execute 'let $' . l:k . ' = ' . string(l:v)
+    endif
+  endfor
+endfunction
+
 function! s:open_with_cmd(cmd) abort
   let l:cwd = s:get('use_git_root', 1) ? s:git_root() : getcwd()
+  let l:saved_env = s:set_provider_env()
 
   let l:saved_dir = getcwd()
   execute 'lcd ' . fnameescape(l:cwd)
   call s:open_split()
   execute 'terminal ++curwin ++close ' . a:cmd
   execute 'lcd ' . fnameescape(l:saved_dir)
+
+  call s:restore_env(l:saved_env)
   let s:term_bufnr = bufnr('%')
   let s:term_winid = win_getid()
 
@@ -643,11 +666,13 @@ function! circuit#worktree(name, bang) abort
   endif
 
   let l:cwd = s:get('use_git_root', 1) ? s:git_root() : getcwd()
+  let l:saved_env = s:set_provider_env()
   let l:saved_dir = getcwd()
   execute 'lcd ' . fnameescape(l:cwd)
   call s:open_split()
   execute 'terminal ++curwin ++close ' . l:cmd
   execute 'lcd ' . fnameescape(l:saved_dir)
+  call s:restore_env(l:saved_env)
 
   let s:term_bufnr = bufnr('%')
   let s:term_winid = win_getid()
