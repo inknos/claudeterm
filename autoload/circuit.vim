@@ -1139,10 +1139,24 @@ function! s:prompt_clear_props() abort
   silent! call prop_type_delete('CircuitSel', #{bufnr: l:bufnr})
 endfunction
 
+function! s:fuzzy_match(str, pattern) abort
+  let l:si = 0
+  let l:pi = 0
+  let l:slen = len(a:str)
+  let l:plen = len(a:pattern)
+  while l:si < l:slen && l:pi < l:plen
+    if a:str[l:si] ==# a:pattern[l:pi]
+      let l:pi += 1
+    endif
+    let l:si += 1
+  endwhile
+  return l:pi ==# l:plen
+endfunction
+
 function! s:prompt_update() abort
   let s:prompt_matches = s:prompt_get_items(s:prompt_prefix)
   if !empty(s:prompt_text)
-    call filter(s:prompt_matches, 'v:val =~# "^" . s:prompt_text')
+    call filter(s:prompt_matches, 's:fuzzy_match(v:val, s:prompt_text)')
   endif
   if s:prompt_selected >= len(s:prompt_matches)
     let s:prompt_selected = max([0, len(s:prompt_matches) - 1])
