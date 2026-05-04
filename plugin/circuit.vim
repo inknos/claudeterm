@@ -51,28 +51,7 @@ let g:circuit_autoread_during_session = get(g:, 'circuit_autoread_during_session
 
 " Keymap variables (all overridable)
 let g:circuit_map_toggle       = get(g:, 'circuit_map_toggle', '<leader>c')
-let g:circuit_map_resume       = get(g:, 'circuit_map_resume', '<leader>cr')
-let g:circuit_map_continue     = get(g:, 'circuit_map_continue', '<leader>cc')
-let g:circuit_map_new          = get(g:, 'circuit_map_new', '<leader>cn')
-let g:circuit_map_kill         = get(g:, 'circuit_map_kill', '<leader>ck')
-let g:circuit_map_pr           = get(g:, 'circuit_map_pr', '<leader>cp')
-let g:circuit_map_zoom         = get(g:, 'circuit_map_zoom', '<leader>cz')
-let g:circuit_map_zoom_term    = get(g:, 'circuit_map_zoom_term', '<C-w>z')
-let g:circuit_map_send         = get(g:, 'circuit_map_send', '<leader>cs')
-let g:circuit_map_stage_ref    = get(g:, 'circuit_map_stage_ref', '<leader>ca')
-let g:circuit_map_chat         = get(g:, 'circuit_map_chat', '<leader>ch')
-let g:circuit_map_verbose      = get(g:, 'circuit_map_verbose', '<leader>cv')
-let g:circuit_map_mode_plan    = get(g:, 'circuit_map_mode_plan', '<leader>cmp')
-let g:circuit_map_mode_fast    = get(g:, 'circuit_map_mode_fast', '<leader>cmf')
-let g:circuit_map_worktree     = get(g:, 'circuit_map_worktree', '<leader>cw')
-let g:circuit_map_undo         = get(g:, 'circuit_map_undo', '<leader>cu')
-let g:circuit_map_redo         = get(g:, 'circuit_map_redo', '<leader>cU')
-let g:circuit_map_export       = get(g:, 'circuit_map_export', '<leader>ce')
-let g:circuit_map_sessions     = get(g:, 'circuit_map_sessions', '<leader>cl')
-let g:circuit_map_plan_open    = get(g:, 'circuit_map_plan_open', '<leader>cpo')
-let g:circuit_map_plan_exec    = get(g:, 'circuit_map_plan_exec', '<leader>cpx')
 let g:circuit_map_prompt       = get(g:, 'circuit_map_prompt', '<leader>[')
-let g:circuit_map_refsend      = get(g:, 'circuit_map_refsend', '<C-l>')
 
 " ---------------------------------------------------------------------------
 " Commands
@@ -204,51 +183,8 @@ endfunction
 " ---------------------------------------------------------------------------
 
 if g:circuit_map_keys
-  " Session management
-  execute 'nnoremap <silent> ' . g:circuit_map_toggle   . ' :call circuit#toggle()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_resume   . ' :call circuit#resume()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_continue . ' :call circuit#continue()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_new      . ' :call circuit#new()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_kill     . ' :call circuit#kill()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_pr       . ' :call circuit#from_pr()<CR>'
-
-  " Window
-  execute 'nnoremap <silent> ' . g:circuit_map_zoom     . ' :call circuit#zoom()<CR>'
-  execute 'tnoremap <silent> ' . g:circuit_map_zoom_term . ' <C-\><C-n>:call circuit#zoom()<CR>'
-
-  " Code context
-  execute 'vnoremap <silent> ' . g:circuit_map_send
-        \ . " :CTsend<CR>"
-  execute 'nnoremap <silent> ' . g:circuit_map_stage_ref
-        \ . " :.CTref<CR>"
-  execute 'vnoremap <silent> ' . g:circuit_map_stage_ref
-        \ . " :CTref<CR>"
-  execute 'vnoremap <silent> ' . g:circuit_map_refsend
-        \ . " :<C-u>call circuit#stage_and_send_ref(line(\"'<\"), line(\"'>\"))<CR>"
-  execute 'nnoremap <silent> ' . g:circuit_map_chat     . ' :call circuit#chat()<CR>'
-
-  " Verbose
-  execute 'nnoremap <silent> ' . g:circuit_map_verbose  . ' :call circuit#toggle_verbose()<CR>'
-
-  " Mode control (sends /plan or /fast slash commands to the session)
-  execute 'nnoremap <silent> ' . g:circuit_map_mode_plan . " :call circuit#set_mode('plan')<CR>"
-  execute 'nnoremap <silent> ' . g:circuit_map_mode_fast . " :call circuit#set_mode('fast')<CR>"
-
-  " Plan workflow
-  execute 'nnoremap <silent> ' . g:circuit_map_plan_open . ' :call circuit#plan_open()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_plan_exec . ' :call circuit#plan_exec()<CR>'
-
-  " Command prompt
+  execute 'nnoremap <silent> ' . g:circuit_map_toggle . ' :call circuit#toggle()<CR>'
   execute 'nnoremap <silent> ' . g:circuit_map_prompt . ' :call circuit#prompt()<CR>'
-
-  " Worktree
-  execute 'nnoremap <silent> ' . g:circuit_map_worktree    . " :call circuit#worktree('', 0)<CR>"
-
-  " Provider features
-  execute 'nnoremap <silent> ' . g:circuit_map_undo     . ' :call circuit#undo()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_redo     . ' :call circuit#redo()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_export   . ' :call circuit#export()<CR>'
-  execute 'nnoremap <silent> ' . g:circuit_map_sessions . ' :call circuit#sessions()<CR>'
 
   " Terminal-mode window navigation
   " <C-h> omitted by default: same as Ctrl+Backspace in many terminals (^H)

@@ -28,8 +28,7 @@ CONTENTS                                              *circuit-contents*
      6.13 Utility ........................ |circuit-utility|
   7. Keymaps .............................. |circuit-keymaps|
      7.1 Normal Mode ..................... |circuit-keymaps-normal|
-     7.2 Visual Mode ..................... |circuit-keymaps-visual|
-     7.3 Terminal Mode ................... |circuit-keymaps-terminal|
+     7.2 Terminal Mode ................... |circuit-keymaps-terminal|
   8. Tab-Completion ....................... |circuit-completion|
   9. Hooks ................................ |circuit-hooks|
  10. Configuration ........................ |circuit-configuration|
@@ -139,7 +138,6 @@ The session persists -- toggling hides and restores the same terminal.
 Resume an older session interactively:             *:CTerm-resume*
 >
   :CTerm resume
-  " or press <leader>cr
 <
 Switch model:                                      *:CTerm-model*
 >
@@ -148,8 +146,9 @@ Switch model:                                      *:CTerm-model*
 Send interactive mode command (provider-dependent): *:CTerm-mode*
 >
   :CTerm mode plan
-  " or press <leader>cmp
 <
+Use |<leader>[| to open the command prompt for quick access to all
+commands.
 
 ==============================================================================
 6. Commands                                         *circuit-commands*
@@ -396,49 +395,22 @@ scratch buffer as a fallback.
 7. Keymaps                                           *circuit-keymaps*
 
 All keymaps are registered only if |g:circuit_map_keys| is 1 (default).
-Every keymap is configurable via the corresponding `g:circuit_map_*`
-variable.
+All other commands are accessible via the command prompt (|:CTprompt|)
+or ex commands (|:CTerm|).
 
 ------------------------------------------------------------------------------
 7.1 Normal Mode                                *circuit-keymaps-normal*
 
   Key              Command         Variable ~
   <leader>c        Toggle          |g:circuit_map_toggle|
-  <leader>cr       Resume          |g:circuit_map_resume|
-  <leader>cc       Continue        |g:circuit_map_continue|
-  <leader>cn       New session     |g:circuit_map_new|
-  <leader>ck       Kill            |g:circuit_map_kill|
-  <leader>cp       From PR         |g:circuit_map_pr|
-  <leader>cz       Zoom toggle     |g:circuit_map_zoom|
-  <leader>ch       Chat            |g:circuit_map_chat|
-  <leader>ca       Stage file ref  |g:circuit_map_stage_ref|
-  <leader>cv       Verbose toggle  |g:circuit_map_verbose|
-  <leader>cw       Worktree        |g:circuit_map_worktree|
-  <leader>cmp      Mode: plan      |g:circuit_map_mode_plan|
-  <leader>cmf      Mode: fast      |g:circuit_map_mode_fast|
-  <leader>cpo      Plan open       |g:circuit_map_plan_open|
-  <leader>cpx      Plan exec       |g:circuit_map_plan_exec|
   <leader>[        Command prompt  |g:circuit_map_prompt|
-  <leader>cu       Undo            |g:circuit_map_undo|
-  <leader>cU       Redo            |g:circuit_map_redo|
-  <leader>ce       Export          |g:circuit_map_export|
-  <leader>cl       Session list    |g:circuit_map_sessions|
 
 ------------------------------------------------------------------------------
-7.2 Visual Mode                                *circuit-keymaps-visual*
-
-  Key              Command              Variable ~
-  <leader>cs       Send selection       |g:circuit_map_send|
-  <leader>ca       Stage file ref       |g:circuit_map_stage_ref|
-  <C-l>            Stage + send ref     |g:circuit_map_refsend|
-
-------------------------------------------------------------------------------
-7.3 Terminal Mode                            *circuit-keymaps-terminal*
+7.2 Terminal Mode                            *circuit-keymaps-terminal*
 
 These keymaps are active when the cursor is inside any terminal buffer.
 
   Key              Action ~
-  <C-w>z           Zoom toggle (|g:circuit_map_zoom_term|)
   <M-h>            Navigate to window left
   <C-j>            Navigate to window below
   <C-k>            Navigate to window above
@@ -651,25 +623,20 @@ g:circuit_checktime_on_bufenter
 g:circuit_map_keys          Number (default: `1`)
                             Set to `0` to disable all default keymaps.
 
-Each keymap has its own variable. See |circuit-keymaps| for the full
-list. Example override:
->
-  let g:circuit_map_toggle = '<F5>'
-  let g:circuit_map_zoom = '<leader>z'
-<
-
-                                                *g:circuit_map_plan_open*
-g:circuit_map_plan_open     String (default: `'<leader>cpo'`)
-                            Keymap for |:CTplanopen|.
-
-                                                *g:circuit_map_plan_exec*
-g:circuit_map_plan_exec     String (default: `'<leader>cpx'`)
-                            Keymap for |:CTplanexec|.
+                                                *g:circuit_map_toggle*
+g:circuit_map_toggle        String (default: `'<leader>c'`)
+                            Keymap for |:CT| (toggle terminal).
 
                                                 *g:circuit_map_prompt*
 g:circuit_map_prompt        String (default: `'<leader>['`)
                             Keymap for |:CTprompt| (floating command
-                            palette).
+                            palette). All other commands are
+                            accessible through the prompt.
+
+Example override: >
+  let g:circuit_map_toggle = '<F5>'
+  let g:circuit_map_prompt = '<leader>p'
+<
 
                                                 *g:circuit_tmap_ch_left*
 g:circuit_tmap_ch_left      Number (default: `0`)
@@ -691,18 +658,6 @@ g:circuit_tmap_c_l_sends_staged
                             to always use |<C-w>|l and add references only
                             with |:CTrefsend| (e.g. if the agent TUI needs
                             raw |<C-l>|).
-
-                                                *g:circuit_map_stage_ref*
-g:circuit_map_stage_ref     String (default: `'<leader>ca'`)
-                            Normal mode: stage the current line; visual
-                            mode: stage the line range. Same as |:CTref| with
-                            the proper range.
-
-                                                *g:circuit_map_refsend*
-g:circuit_map_refsend       String (default: `'<C-l>'`)
-                            Visual mode: stage the selected line range and
-                            immediately send all staged refs to the agent
-                            terminal (shows the terminal and focuses it).
 
 ------------------------------------------------------------------------------
 10.4 Display                                  *circuit-config-display*
