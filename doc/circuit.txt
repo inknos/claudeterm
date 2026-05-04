@@ -235,14 +235,14 @@ support print a warning.
 :CTchat                 agent. Opens the terminal if not visible.
 
                                                       *:CTref*
-:[range]CTref           Store a line reference to send to the agent TUI. The
+:[range]CTref           Append a line reference to the staged refs list. The
                         string is `relpath:line` for one line, or
                         `relpath:first-last` (path relative to the git root
                         when |g:circuit_use_git_root| is `1`, else relative
                         to the current working directory), e.g. `src/x.py:3`
-                        or `src/x.py:10-20`. The reference is not sent until
-                        you use |:CTrefsend| or
-                        |<C-l>| in the agent |terminal| (see
+                        or `src/x.py:10-20`. Multiple refs can be staged
+                        before sending. Refs are not sent until you use
+                        |:CTrefsend| or |<C-l>| in the agent |terminal| (see
                         |g:circuit_tmap_c_l_sends_staged|). With no range, the
                         current line is used (same for |:CTerm| |ref|).
 
@@ -255,12 +255,22 @@ support print a warning.
                         |:CTaddtochat| instead.
 
                                                       *:CTrefsend*
-:CTerm refsend          Send the staged reference to the running agent
-:CTrefsend              terminal, then clear it. Same as a successful
-                        |<C-l>| in |terminal| mode when a ref is pending.
+:CTerm refsend          Send all staged refs to the running agent terminal
+:CTrefsend              (one per line), then clear the list. Shows the
+                        terminal if hidden and focuses it (enters terminal
+                        mode). Same as a successful |<C-l>| in |terminal|
+                        mode when refs are pending.
 :[range]CTrefsend        Ignores the range; accepts one so
                         `:'<,'>CTrefsend` does not raise |E841| after
                         a visual selection.
+
+                                                      *:CTrefclear*
+:CTerm refclear         Clear all staged refs without sending them.
+:CTrefclear
+
+                                                      *:CTreflist*
+:CTerm reflist          Show all currently staged refs as a numbered list.
+:CTreflist
 
 ------------------------------------------------------------------------------
 6.5 Worktree                                         *circuit-worktree*
@@ -354,9 +364,10 @@ variable.
 ------------------------------------------------------------------------------
 7.2 Visual Mode                                *circuit-keymaps-visual*
 
-  Key              Command         Variable ~
-  <leader>cs       Send selection  |g:circuit_map_send|
-  <leader>ca       Stage file ref  |g:circuit_map_stage_ref|
+  Key              Command              Variable ~
+  <leader>cs       Send selection       |g:circuit_map_send|
+  <leader>ca       Stage file ref       |g:circuit_map_stage_ref|
+  <C-l>            Stage + send ref     |g:circuit_map_refsend|
 
 ------------------------------------------------------------------------------
 7.3 Terminal Mode                            *circuit-keymaps-terminal*
@@ -387,9 +398,10 @@ These keymaps are active when the cursor is inside any terminal buffer.
   :CTerm <Tab>           Completes subcommands: `resume`, `continue`,
                          `new`, `kill`, `pr`, `worktree`, `plan`,
                          `fast`, `mode`, `zoom`, `position`, `send`,
-                         `chat`, `ref`, `refsend`, `model`, `verbose`,
-                         `doctor`, `version`, `undo`, `redo`, `export`,
-                         `stats`, `sessions`.
+                         `chat`, `ref`, `refsend`, `refclear`,
+                         `reflist`, `model`, `verbose`, `doctor`,
+                         `version`, `undo`, `redo`, `export`, `stats`,
+                         `sessions`.
 
   :CTerm mode <Tab>      Completes from the active provider's mode list.
                          E.g. `plan`, `fast`, `normal` for Claude;
@@ -433,8 +445,9 @@ Available events:
   CTExport                Export slash command sent
   CTSessionList           Session list opened
   CTChatRefStaged         A |:CTref| / |:CTaddtochat| line range was staged
-  CTChatRefSent           Staged reference was sent to the terminal (via
+  CTChatRefSent           Staged refs were sent to the terminal (via
                           |:CTrefsend| or |<C-l>| in |terminal| mode)
+  CTChatRefCleared        Staged refs cleared (via |:CTrefclear|)
 
 ==============================================================================
 10. Configuration                              *circuit-configuration*
@@ -597,6 +610,12 @@ g:circuit_map_stage_ref     String (default: `'<leader>ca'`)
                             Normal mode: stage the current line; visual
                             mode: stage the line range. Same as |:CTref| with
                             the proper range.
+
+                                                *g:circuit_map_refsend*
+g:circuit_map_refsend       String (default: `'<C-l>'`)
+                            Visual mode: stage the selected line range and
+                            immediately send all staged refs to the agent
+                            terminal (shows the terminal and focuses it).
 
 ------------------------------------------------------------------------------
 10.4 Display                                  *circuit-config-display*

@@ -67,6 +67,7 @@ let g:circuit_map_undo         = get(g:, 'circuit_map_undo', '<leader>cu')
 let g:circuit_map_redo         = get(g:, 'circuit_map_redo', '<leader>cU')
 let g:circuit_map_export       = get(g:, 'circuit_map_export', '<leader>ce')
 let g:circuit_map_sessions     = get(g:, 'circuit_map_sessions', '<leader>cl')
+let g:circuit_map_refsend      = get(g:, 'circuit_map_refsend', '<C-l>')
 
 " ---------------------------------------------------------------------------
 " Commands
@@ -94,6 +95,8 @@ command! -nargs=0 -range   CTsend     call circuit#send_selection(<line1>, <line
 command! -range -nargs=0 CTref        call circuit#stage_ref(<line1>, <line2>)
 command! -range -nargs=0 CTaddtochat  call circuit#stage_ref(<line1>, <line2>)
 command! -nargs=0 -range   CTrefsend  call circuit#send_staged_ref()
+command! -nargs=0 CTrefclear call circuit#clear_staged_refs()
+command! -nargs=0 CTreflist  call circuit#list_staged_refs()
 command! -nargs=0 CTchat     call circuit#chat()
 command! -nargs=? -bang CTworktree call circuit#worktree(<q-args>, <bang>0)
 command! -nargs=0 CTundo     call circuit#undo()
@@ -128,6 +131,10 @@ function! s:dispatch(...) abort
     call circuit#stage_ref(line('.'), line('.'))
   elseif l:cmd ==# 'refsend'
     call circuit#send_staged_ref()
+  elseif l:cmd ==# 'refclear'
+    call circuit#clear_staged_refs()
+  elseif l:cmd ==# 'reflist'
+    call circuit#list_staged_refs()
   elseif l:cmd ==# 'chat'
     call circuit#chat()
   elseif l:cmd ==# 'verbose'
@@ -199,6 +206,8 @@ if g:circuit_map_keys
         \ . " :.CTref<CR>"
   execute 'vnoremap <silent> ' . g:circuit_map_stage_ref
         \ . " :CTref<CR>"
+  execute 'vnoremap <silent> ' . g:circuit_map_refsend
+        \ . " :<C-u>call circuit#stage_and_send_ref(line(\"'<\"), line(\"'>\"))<CR>"
   execute 'nnoremap <silent> ' . g:circuit_map_chat     . ' :call circuit#chat()<CR>'
 
   " Verbose

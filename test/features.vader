@@ -12,22 +12,31 @@ Execute (redo warns when unsupported by claude):
   redir END
   Assert output =~# 'redo not supported'
 
-Execute (send_staged_ref warns with no pending ref):
+Execute (send_staged_ref warns with no pending refs):
+  call circuit#clear_staged_refs()
   redir => out
   silent call circuit#send_staged_ref()
   redir END
-  Assert out =~# 'no staged'
+  Assert out =~# 'no staged refs'
 
-Execute (stage_ref stores path and line range in message):
+Execute (stage_ref appends to list and shows count):
+  call circuit#clear_staged_refs()
   exec 'e' fnameescape(fnamemodify('test/vimrc', ':p'))
   redir => out
   call circuit#stage_ref(1, 3)
   redir END
   Assert out =~# 'staged'
   Assert out =~# '1-3'
+  Assert out =~# '1 pending'
+  redir => out2
+  call circuit#stage_ref(5, 5)
+  redir END
+  Assert out2 =~# '2 pending'
+  call circuit#clear_staged_refs()
   bdelete!
 
 Execute (stage_ref uses single line as path:N, not path:N-N):
+  call circuit#clear_staged_refs()
   exec 'e' fnameescape(fnamemodify('test/vimrc', ':p'))
   redir => out
   call circuit#stage_ref(2, 2)
@@ -35,6 +44,64 @@ Execute (stage_ref uses single line as path:N, not path:N-N):
   Assert out =~# 'staged'
   Assert out =~# ':2'
   Assert out !~# '2-2'
+  call circuit#clear_staged_refs()
+  bdelete!
+
+Execute (clear_staged_refs empties the list):
+  exec 'e' fnameescape(fnamemodify('test/vimrc', ':p'))
+  call circuit#stage_ref(1, 1)
+  call circuit#stage_ref(2, 3)
+  redir => out
+  call circuit#clear_staged_refs()
+  redir END
+  Assert out =~# 'cleared'
+  redir => out2
+  silent call circuit#send_staged_ref()
+  redir END
+  Assert out2 =~# 'no staged refs'
+  bdelete!
+
+Execute (list_staged_refs shows numbered list):
+  call circuit#clear_staged_refs()
+  exec 'e' fnameescape(fnamemodify('test/vimrc', ':p'))
+  call circuit#stage_ref(1, 1)
+  call circuit#stage_ref(4, 6)
+  redir => out
+  silent call circuit#list_staged_refs()
+  redir END
+  Assert out =~# '2)'
+  Assert out =~# '1\.'
+  Assert out =~# '2\.'
+  call circuit#clear_staged_refs()
+  bdelete!
+
+Execute (list_staged_refs shows message when empty):
+  call circuit#clear_staged_refs()
+  redir => out
+  silent call circuit#list_staged_refs()
+  redir END
+  Assert out =~# 'no staged refs'
+
+Execute (stage_and_send_ref clears previous refs before staging):
+  exec 'e' fnameescape(fnamemodify('test/vimrc', ':p'))
+  call circuit#stage_ref(1, 1)
+  call circuit#stage_ref(2, 2)
+  " Two refs are now pending; stage_and_send_ref should discard them
+  redir => out
+  silent call circuit#stage_and_send_ref(5, 7)
+  redir END
+  " It staged only 1 ref (the 5-7 range), not 3
+  Assert out =~# '1 pending'
+  Assert out !~# '3 pending'
+  " After send (which warns about no terminal), list should still be
+  " just the one ref that couldn't be sent (send_staged_ref bails early)
+  redir => out2
+  silent call circuit#list_staged_refs()
+  redir END
+  Assert out2 =~# '5-7'
+  Assert out2 !~# ':1\>'
+  Assert out2 !~# ':2\>'
+  call circuit#clear_staged_refs()
   bdelete!
 
 Execute (export warns when unsupported by claude):

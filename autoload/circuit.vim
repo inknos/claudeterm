@@ -15,7 +15,7 @@ let s:current_model = ''
 let s:verbose = 0
 let s:autoread_save = 0
 let s:autoread_armed = 0
-let s:staged_file_ref = ''
+let s:staged_file_refs = []
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -630,38 +630,71 @@ function! circuit#stage_ref(line1, line2) abort
     let l:b = l:tmp
   endif
   if l:a == l:b
-    let s:staged_file_ref = s:ref_path_pretty() . ':' . l:a
+    let l:ref = s:ref_path_pretty() . ':' . l:a
   else
-    let s:staged_file_ref = s:ref_path_pretty() . ':' . l:a . '-' . l:b
+    let l:ref = s:ref_path_pretty() . ':' . l:a . '-' . l:b
   endif
-  echo 'vim-circuit: staged ' . s:staged_file_ref
+  call add(s:staged_file_refs, l:ref)
+  echo 'vim-circuit: staged ' . l:ref . ' (' . len(s:staged_file_refs) . ' pending)'
   call circuit#hooks#fire('ChatRefStaged')
 endfunction
 
+function! circuit#stage_and_send_ref(line1, line2) abort
+  let s:staged_file_refs = []
+  call circuit#stage_ref(a:line1, a:line2)
+  call circuit#send_staged_ref()
+endfunction
+
 function! circuit#send_staged_ref() abort
-  if empty(s:staged_file_ref)
-    echo 'vim-circuit: no staged file reference; use :CTref (see :help CTref)'
+  if empty(s:staged_file_refs)
+    echo 'vim-circuit: no staged refs; use :CTref (see :help CTref)'
     return
   endif
   if !s:term_alive()
     echo 'vim-circuit: no active terminal'
     return
   endif
-  call term_sendkeys(s:term_bufnr, s:staged_file_ref . "\n")
-  let s:staged_file_ref = ''
+  let l:winid = bufwinid(s:term_bufnr)
+  if l:winid == -1
+    call s:show()
+  endif
+  let l:text = join(s:staged_file_refs, "\n") . "\n"
+  call term_sendkeys(s:term_bufnr, l:text)
+  let s:staged_file_refs = []
   call circuit#hooks#fire('ChatRefSent')
+  call s:focus_term()
 endfunction
 
-" Expression mapping for |terminal| mode: send staged `path:l1:l2` and
-" Enter, or fall back to window right (|<C-w>|l).
+" Expression mapping for |terminal| mode: send staged refs and Enter,
+" or fall back to window right (|<C-w>|l).
 function! circuit#terminal_c_l() abort
-  if !empty(s:staged_file_ref) && s:term_alive()
-    call term_sendkeys(s:term_bufnr, s:staged_file_ref . "\n")
-    let s:staged_file_ref = ''
+  if !empty(s:staged_file_refs) && s:term_alive()
+    let l:text = join(s:staged_file_refs, "\n") . "\n"
+    call term_sendkeys(s:term_bufnr, l:text)
+    let s:staged_file_refs = []
     call circuit#hooks#fire('ChatRefSent')
     return ''
   endif
   return "\<C-\><C-n><C-w>l"
+endfunction
+
+function! circuit#clear_staged_refs() abort
+  let s:staged_file_refs = []
+  echo 'vim-circuit: staged refs cleared'
+  call circuit#hooks#fire('ChatRefCleared')
+endfunction
+
+function! circuit#list_staged_refs() abort
+  if empty(s:staged_file_refs)
+    echo 'vim-circuit: no staged refs'
+    return
+  endif
+  echo 'vim-circuit: staged refs (' . len(s:staged_file_refs) . '):'
+  let l:i = 1
+  for l:ref in s:staged_file_refs
+    echo '  ' . l:i . '. ' . l:ref
+    let l:i += 1
+  endfor
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -883,8 +916,9 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
   if l:nparts <= 2
     let l:subs = ['resume', 'continue', 'new', 'kill', 'pr', 'worktree',
           \ 'plan', 'fast', 'mode', 'zoom', 'position', 'send', 'chat',
-          \ 'ref', 'refsend', 'model', 'verbose', 'doctor', 'version',
-          \ 'undo', 'redo', 'export', 'stats', 'sessions']
+          \ 'ref', 'refsend', 'refclear', 'reflist', 'model', 'verbose',
+          \ 'doctor', 'version', 'undo', 'redo', 'export', 'stats',
+          \ 'sessions']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')
   endif
 
