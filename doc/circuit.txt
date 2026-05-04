@@ -89,7 +89,7 @@ Feature matrix:                            *circuit-provider-features*
   Verbose/debug             ✓       —      ✓       —
   Worktree                  ✓       ✓      ✓       —
   From PR                   ✓       —      —       —
-  Interactive modes         ✓       ✓      —       ✓
+  Interactive modes         ✓       ✓      —       —
   Plan workflow             ✓       —      —       —
   Health check              ✓       ✓      —       —
   Undo/redo                 —       —      —       ✓
@@ -469,8 +469,8 @@ These keymaps are active when the cursor is inside any terminal buffer.
 
   :CTerm mode <Tab>      Completes from the active provider's mode list.
                          E.g. `plan`, `fast`, `normal` for Claude;
-                         `plan`, `ask` for Cursor Agent; `plan` for
-                         OpenCode; empty for Gemini.
+                         `plan`, `ask` for Cursor Agent; empty for
+                         OpenCode and Gemini.
 
   :CTerm model <Tab>     Completes from the active provider's model list.
                          E.g. `sonnet`, `opus`, `haiku` for Claude;

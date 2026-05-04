@@ -14,10 +14,12 @@ Execute (from_pr warns when unsupported by gemini):
   Assert output =~# 'from-pr not supported'
   let g:circuit_provider = 'claude'
 
-Execute (set_mode supported by opencode with experimental plan):
+Execute (set_mode warns when unsupported by opencode):
   let g:circuit_provider = 'opencode'
-  let prov = circuit#providers#current()
-  Assert index(prov.modes, 'plan') >= 0
+  redir => output
+  silent call circuit#set_mode('plan')
+  redir END
+  Assert output =~# 'modes not supported'
   let g:circuit_provider = 'claude'
 
 Execute (set_mode warns when unsupported by gemini):
