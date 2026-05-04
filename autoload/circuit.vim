@@ -23,6 +23,7 @@ let s:prompt_text = ''
 let s:prompt_matches = []
 let s:prompt_selected = 0
 let s:prompt_prefix = ''
+let s:prompt_props = []
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -1078,24 +1079,64 @@ function! s:prompt_get_items(prefix) abort
 endfunction
 
 function! s:prompt_render() abort
-  let l:lines = ['CTerm> ' . s:prompt_text . '_']
-  if !empty(s:prompt_prefix)
-    let l:lines[0] = 'CTerm ' . s:prompt_prefix . '> ' . s:prompt_text . '_'
-  endif
-  call add(l:lines, repeat("\u2500", 30))
+  let l:prompt = empty(s:prompt_prefix)
+        \ ? '> ' . s:prompt_text
+        \ : s:prompt_prefix . '> ' . s:prompt_text
+  let l:lines = [l:prompt]
+  let l:props = []
   let l:i = 0
   for l:m in s:prompt_matches
+    let l:line = '  ' . l:m
     if l:i ==# s:prompt_selected
-      call add(l:lines, '> ' . l:m)
-    else
-      call add(l:lines, '  ' . l:m)
+      call add(l:props, #{
+            \ line: len(l:lines) + 1,
+            \ hl: 'PmenuSel',
+            \ })
     endif
+    call add(l:lines, l:line)
     let l:i += 1
   endfor
   if empty(s:prompt_matches)
     call add(l:lines, '  (no matches)')
   endif
+  let s:prompt_props = l:props
   return l:lines
+endfunction
+
+function! s:prompt_apply_props() abort
+  if s:prompt_winid < 1
+    return
+  endif
+  let l:bufnr = winbufnr(s:prompt_winid)
+  if l:bufnr < 1
+    return
+  endif
+  for l:p in s:prompt_props
+    call prop_type_add('CircuitSel', #{
+          \ bufnr: l:bufnr,
+          \ highlight: l:p.hl,
+          \ override: 1,
+          \ })
+    let l:text = getbufline(l:bufnr, l:p.line)
+    if !empty(l:text)
+      call prop_add(l:p.line, 1, #{
+            \ type: 'CircuitSel',
+            \ length: len(l:text[0]),
+            \ bufnr: l:bufnr,
+            \ })
+    endif
+  endfor
+endfunction
+
+function! s:prompt_clear_props() abort
+  if s:prompt_winid < 1
+    return
+  endif
+  let l:bufnr = winbufnr(s:prompt_winid)
+  if l:bufnr < 1
+    return
+  endif
+  silent! call prop_type_delete('CircuitSel', #{bufnr: l:bufnr})
 endfunction
 
 function! s:prompt_update() abort
@@ -1106,7 +1147,9 @@ function! s:prompt_update() abort
   if s:prompt_selected >= len(s:prompt_matches)
     let s:prompt_selected = max([0, len(s:prompt_matches) - 1])
   endif
+  call s:prompt_clear_props()
   call popup_settext(s:prompt_winid, s:prompt_render())
+  call s:prompt_apply_props()
 endfunction
 
 function! s:prompt_filter(winid, key) abort
@@ -1125,7 +1168,9 @@ function! s:prompt_filter(winid, key) abort
   if a:key ==# "\<Tab>" || a:key ==# "\<Down>" || a:key ==# "\<C-n>"
     if !empty(s:prompt_matches)
       let s:prompt_selected = (s:prompt_selected + 1) % len(s:prompt_matches)
+      call s:prompt_clear_props()
       call popup_settext(a:winid, s:prompt_render())
+      call s:prompt_apply_props()
     endif
     return 1
   endif
@@ -1133,7 +1178,9 @@ function! s:prompt_filter(winid, key) abort
     if !empty(s:prompt_matches)
       let s:prompt_selected = (s:prompt_selected - 1 + len(s:prompt_matches))
             \ % len(s:prompt_matches)
+      call s:prompt_clear_props()
       call popup_settext(a:winid, s:prompt_render())
+      call s:prompt_apply_props()
     endif
     return 1
   endif
@@ -1185,13 +1232,20 @@ function! s:prompt_open(prefix) abort
   let s:prompt_winid = popup_create(s:prompt_render(), {
         \ 'filter': function('s:prompt_filter'),
         \ 'callback': function('s:prompt_callback'),
-        \ 'minwidth': 30,
+        \ 'title': ' Circuit ',
+        \ 'minwidth': 35,
+        \ 'maxwidth': 50,
         \ 'maxheight': 20,
         \ 'border': [],
+        \ 'borderchars': ["\u2500", "\u2502", "\u2500", "\u2502",
+        \   "\u256d", "\u256e", "\u256f", "\u2570"],
+        \ 'borderhighlight': ['Comment'],
+        \ 'highlight': 'Normal',
         \ 'padding': [0, 1, 0, 1],
         \ 'pos': 'center',
         \ 'zindex': 200,
         \ })
+  call s:prompt_apply_props()
 endfunction
 
 function! circuit#prompt() abort
