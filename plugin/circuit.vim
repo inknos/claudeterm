@@ -72,6 +72,7 @@ let g:circuit_map_export       = get(g:, 'circuit_map_export', '<leader>ce')
 let g:circuit_map_sessions     = get(g:, 'circuit_map_sessions', '<leader>cl')
 let g:circuit_map_plan_open    = get(g:, 'circuit_map_plan_open', '<leader>cpo')
 let g:circuit_map_plan_exec    = get(g:, 'circuit_map_plan_exec', '<leader>cpx')
+let g:circuit_map_prompt       = get(g:, 'circuit_map_prompt', '<leader>[')
 let g:circuit_map_refsend      = get(g:, 'circuit_map_refsend', '<C-l>')
 
 " ---------------------------------------------------------------------------
@@ -112,6 +113,7 @@ command! -nargs=0 CTredo     call circuit#redo()
 command! -nargs=0 CTexport   call circuit#export()
 command! -nargs=0 CTstats    call circuit#stats()
 command! -nargs=0 CTsessions call circuit#sessions()
+command! -nargs=0 CTprompt   call circuit#prompt()
 
 function! s:dispatch(...) abort
   if a:0 == 0
@@ -191,6 +193,8 @@ function! s:dispatch(...) abort
     else
       echoerr 'vim-circuit: position requires an argument (right/left/top/bottom)'
     endif
+  elseif l:cmd ==# 'prompt'
+    call circuit#prompt()
   else
     echoerr 'vim-circuit: unknown subcommand "' . l:cmd . '"'
   endif
@@ -234,6 +238,9 @@ if g:circuit_map_keys
   " Plan workflow
   execute 'nnoremap <silent> ' . g:circuit_map_plan_open . ' :call circuit#plan_open()<CR>'
   execute 'nnoremap <silent> ' . g:circuit_map_plan_exec . ' :call circuit#plan_exec()<CR>'
+
+  " Command prompt
+  execute 'nnoremap <silent> ' . g:circuit_map_prompt . ' :call circuit#prompt()<CR>'
 
   " Worktree
   execute 'nnoremap <silent> ' . g:circuit_map_worktree    . " :call circuit#worktree('', 0)<CR>"

@@ -29,6 +29,7 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'planopen') >= 0
   Assert index(result, 'planexec') >= 0
   Assert index(result, 'planclose') >= 0
+  Assert index(result, 'prompt') >= 0
 
 Execute (subcommand completion filters by prefix):
   let result = circuit#complete('re', 'CTerm re', 8)

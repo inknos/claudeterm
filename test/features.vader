@@ -195,3 +195,11 @@ Execute (gemini provider has empty plan_dir and exit_plan_cmd):
   Assert empty(prov.plan_dir)
   Assert empty(prov.exit_plan_cmd)
   let g:circuit_provider = 'claude'
+
+Execute (prompt is in subcommand completion list):
+  let result = circuit#complete('pro', 'CTerm pro', 9)
+  Assert index(result, 'prompt') >= 0
+
+Execute (circuit#prompt exists and is callable):
+  let g:circuit_provider = 'claude'
+  Assert exists('*circuit#prompt')

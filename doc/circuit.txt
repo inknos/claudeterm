@@ -24,7 +24,8 @@ CONTENTS                                              *circuit-contents*
      6.9 Stats .......................... |circuit-stats|
      6.10 Session List ................... |circuit-sessions|
      6.11 Plan Workflow .................. |circuit-plan-workflow|
-     6.12 Utility ........................ |circuit-utility|
+     6.12 Command Prompt ................. |circuit-prompt|
+     6.13 Utility ........................ |circuit-utility|
   7. Keymaps .............................. |circuit-keymaps|
      7.1 Normal Mode ..................... |circuit-keymaps-normal|
      7.2 Visual Mode ..................... |circuit-keymaps-visual|
@@ -375,6 +376,22 @@ scratch buffer as a fallback.
 :CTplanclose            previous window layout. Does not delete the file;
                         reopen with |:CTplanopen|.
 
+------------------------------------------------------------------------------
+6.12 Command Prompt                                  *circuit-prompt*
+
+                                                      *:CTprompt*
+:CTerm prompt           Open a floating command palette. Type to filter
+:CTprompt               subcommands, use |<Tab>|/|<S-Tab>| to navigate,
+                        |<CR>| to execute, |<Esc>| to cancel.
+
+                        Subcommands that require an argument (`mode`,
+                        `model`, `position`) chain a second popup with
+                        provider-aware completions.
+
+                        Requires Vim with |+popupwin| (8.2+). Falls back
+                        to |input()| with tab-completion when popups are
+                        not available.
+
 ==============================================================================
 7. Keymaps                                           *circuit-keymaps*
 
@@ -401,6 +418,7 @@ variable.
   <leader>cmf      Mode: fast      |g:circuit_map_mode_fast|
   <leader>cpo      Plan open       |g:circuit_map_plan_open|
   <leader>cpx      Plan exec       |g:circuit_map_plan_exec|
+  <leader>[        Command prompt  |g:circuit_map_prompt|
   <leader>cu       Undo            |g:circuit_map_undo|
   <leader>cU       Redo            |g:circuit_map_redo|
   <leader>ce       Export          |g:circuit_map_export|
@@ -447,7 +465,7 @@ These keymaps are active when the cursor is inside any terminal buffer.
                          `reflist`, `model`, `verbose`, `doctor`,
                          `version`, `undo`, `redo`, `export`, `stats`,
                          `sessions`, `planopen`, `planexec`,
-                         `planclose`.
+                         `planclose`, `prompt`.
 
   :CTerm mode <Tab>      Completes from the active provider's mode list.
                          E.g. `plan`, `fast`, `normal` for Claude;
@@ -652,6 +670,11 @@ g:circuit_map_plan_open     String (default: `'<leader>cpo'`)
                                                 *g:circuit_map_plan_exec*
 g:circuit_map_plan_exec     String (default: `'<leader>cpx'`)
                             Keymap for |:CTplanexec|.
+
+                                                *g:circuit_map_prompt*
+g:circuit_map_prompt        String (default: `'<leader>['`)
+                            Keymap for |:CTprompt| (floating command
+                            palette).
 
                                                 *g:circuit_tmap_ch_left*
 g:circuit_tmap_ch_left      Number (default: `0`)

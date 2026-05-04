@@ -18,6 +18,11 @@ let s:autoread_armed = 0
 let s:staged_file_refs = []
 let s:plan_bufnr = -1
 let s:pre_plan_winrestcmd = ''
+let s:prompt_winid = -1
+let s:prompt_text = ''
+let s:prompt_matches = []
+let s:prompt_selected = 0
+let s:prompt_prefix = ''
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -1062,7 +1067,8 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
           \ 'plan', 'fast', 'mode', 'zoom', 'position', 'send', 'chat',
           \ 'ref', 'refsend', 'refclear', 'reflist', 'model', 'verbose',
           \ 'doctor', 'version', 'undo', 'redo', 'export', 'stats',
-          \ 'sessions', 'planopen', 'planexec', 'planclose']
+          \ 'sessions', 'planopen', 'planexec', 'planclose',
+          \ 'prompt']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')
   endif
 
@@ -1080,4 +1086,145 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
   endif
 
   return []
+endfunction
+
+" ---------------------------------------------------------------------------
+" Floating command prompt (command palette)
+" ---------------------------------------------------------------------------
+
+let s:prompt_needs_arg = ['mode', 'model', 'position']
+
+function! s:prompt_get_items(prefix) abort
+  if empty(a:prefix)
+    return circuit#complete('', 'CTerm ', 6)
+  endif
+  return circuit#complete('', 'CTerm ' . a:prefix . ' ', 6 + len(a:prefix) + 1)
+endfunction
+
+function! s:prompt_render() abort
+  let l:lines = ['CTerm> ' . s:prompt_text . '_']
+  if !empty(s:prompt_prefix)
+    let l:lines[0] = 'CTerm ' . s:prompt_prefix . '> ' . s:prompt_text . '_'
+  endif
+  call add(l:lines, repeat("\u2500", 30))
+  let l:i = 0
+  for l:m in s:prompt_matches
+    if l:i ==# s:prompt_selected
+      call add(l:lines, '> ' . l:m)
+    else
+      call add(l:lines, '  ' . l:m)
+    endif
+    let l:i += 1
+  endfor
+  if empty(s:prompt_matches)
+    call add(l:lines, '  (no matches)')
+  endif
+  return l:lines
+endfunction
+
+function! s:prompt_update() abort
+  let s:prompt_matches = s:prompt_get_items(s:prompt_prefix)
+  if !empty(s:prompt_text)
+    call filter(s:prompt_matches, 'v:val =~# "^" . s:prompt_text')
+  endif
+  if s:prompt_selected >= len(s:prompt_matches)
+    let s:prompt_selected = max([0, len(s:prompt_matches) - 1])
+  endif
+  call popup_settext(s:prompt_winid, s:prompt_render())
+endfunction
+
+function! s:prompt_filter(winid, key) abort
+  if a:key ==# "\<Esc>" || a:key ==# "\<C-c>"
+    call popup_close(a:winid, -1)
+    return 1
+  endif
+  if a:key ==# "\<CR>"
+    if !empty(s:prompt_matches)
+      call popup_close(a:winid, s:prompt_selected + 1)
+    else
+      call popup_close(a:winid, -1)
+    endif
+    return 1
+  endif
+  if a:key ==# "\<Tab>" || a:key ==# "\<Down>" || a:key ==# "\<C-n>"
+    if !empty(s:prompt_matches)
+      let s:prompt_selected = (s:prompt_selected + 1) % len(s:prompt_matches)
+      call popup_settext(a:winid, s:prompt_render())
+    endif
+    return 1
+  endif
+  if a:key ==# "\<S-Tab>" || a:key ==# "\<Up>" || a:key ==# "\<C-p>"
+    if !empty(s:prompt_matches)
+      let s:prompt_selected = (s:prompt_selected - 1 + len(s:prompt_matches))
+            \ % len(s:prompt_matches)
+      call popup_settext(a:winid, s:prompt_render())
+    endif
+    return 1
+  endif
+  if a:key ==# "\<BS>"
+    if !empty(s:prompt_text)
+      let s:prompt_text = s:prompt_text[:-2]
+      let s:prompt_selected = 0
+      call s:prompt_update()
+    endif
+    return 1
+  endif
+  if a:key ==# "\<C-u>"
+    let s:prompt_text = ''
+    let s:prompt_selected = 0
+    call s:prompt_update()
+    return 1
+  endif
+  if a:key =~# '^[[:print:]]$'
+    let s:prompt_text .= a:key
+    let s:prompt_selected = 0
+    call s:prompt_update()
+    return 1
+  endif
+  return 1
+endfunction
+
+function! s:prompt_callback(winid, result) abort
+  let s:prompt_winid = -1
+  if a:result <= 0 || empty(s:prompt_matches)
+    return
+  endif
+  let l:cmd = s:prompt_matches[a:result - 1]
+  if empty(s:prompt_prefix) && index(s:prompt_needs_arg, l:cmd) >= 0
+    call s:prompt_open(l:cmd)
+    return
+  endif
+  if !empty(s:prompt_prefix)
+    execute 'CTerm ' . s:prompt_prefix . ' ' . l:cmd
+  else
+    execute 'CTerm ' . l:cmd
+  endif
+endfunction
+
+function! s:prompt_open(prefix) abort
+  let s:prompt_text = ''
+  let s:prompt_selected = 0
+  let s:prompt_prefix = a:prefix
+  let s:prompt_matches = s:prompt_get_items(a:prefix)
+  let s:prompt_winid = popup_create(s:prompt_render(), {
+        \ 'filter': function('s:prompt_filter'),
+        \ 'callback': function('s:prompt_callback'),
+        \ 'minwidth': 30,
+        \ 'maxheight': 20,
+        \ 'border': [],
+        \ 'padding': [0, 1, 0, 1],
+        \ 'pos': 'center',
+        \ 'zindex': 200,
+        \ })
+endfunction
+
+function! circuit#prompt() abort
+  if !has('popupwin')
+    let l:cmd = input('CTerm> ', '', 'customlist,circuit#complete')
+    if !empty(l:cmd)
+      execute 'CTerm ' . l:cmd
+    endif
+    return
+  endif
+  call s:prompt_open('')
 endfunction
