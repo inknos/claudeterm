@@ -691,6 +691,12 @@ Buffers not reloading~
   Check that `g:circuit_auto_reload` is `1` and that |'autoread'| is
   not globally disabled.
 
+`:qa` reports "Job still running"~
+  This should not happen: the plugin registers a |QuitPre| autocommand
+  that kills the circuit terminal before Vim quits. If you see `E947`
+  anyway, the terminal buffer may belong to a different plugin. Use
+  `:qa!` to force quit.
+
 Empty window after the agent exits~
   When the agent CLI (e.g. opencode) exits, the split should close
   automatically (|TermClose| or the circuit timer). If a stale buffer

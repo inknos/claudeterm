@@ -217,3 +217,8 @@ if has('terminal') && exists('##TermClose')
     autocmd TermClose * call circuit#on_termclose(0 + expand('<abuf>'))
   augroup END
 endif
+
+augroup circuit_quit
+  autocmd!
+  autocmd QuitPre * call circuit#kill()
+augroup END
