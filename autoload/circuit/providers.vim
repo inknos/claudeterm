@@ -27,7 +27,6 @@ let s:providers.claude = {
       \ 'models': ['sonnet', 'opus', 'haiku'],
       \ 'plan_dir': '~/.claude/plans',
       \ 'exit_plan_cmd': 'normal',
-      \ 'env': {},
       \ 'slash_commands': {
       \   'undo': '',
       \   'redo': '',
@@ -54,7 +53,6 @@ let s:providers.agent = {
       \ 'models': [],
       \ 'plan_dir': '',
       \ 'exit_plan_cmd': '',
-      \ 'env': {},
       \ 'slash_commands': {
       \   'undo': '',
       \   'redo': '',
@@ -81,7 +79,6 @@ let s:providers.gemini = {
       \ 'models': ['pro', 'flash', 'flash-lite'],
       \ 'plan_dir': '',
       \ 'exit_plan_cmd': '',
-      \ 'env': {},
       \ 'slash_commands': {
       \   'undo': '',
       \   'redo': '',
@@ -103,12 +100,11 @@ let s:providers.opencode = {
       \ 'doctor_cmd': '',
       \ 'stats_cmd': 'stats',
       \ 'session_list_cmd': 'session list',
-      \ 'modes': ['plan'],
+      \ 'modes': [],
       \ 'mode_prefix': '/',
       \ 'models': [],
       \ 'plan_dir': '',
       \ 'exit_plan_cmd': '',
-      \ 'env': {'OPENCODE_EXPERIMENTAL_PLAN_MODE': '1'},
       \ 'slash_commands': {
       \   'undo': '/undo',
       \   'redo': '/redo',
