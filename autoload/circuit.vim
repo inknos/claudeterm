@@ -7,8 +7,6 @@
 " ---------------------------------------------------------------------------
 let s:term_bufnr = -1
 let s:term_winid = -1
-let s:is_zoomed = 0
-let s:pre_zoom_winrestcmd = ''
 let s:reload_timer = -1
 let s:current_mode = ''
 let s:current_model = ''
@@ -39,6 +37,37 @@ function! s:get(name, default) abort
     return eval(l:gvar)
   endif
   return a:default
+endfunction
+
+function! s:get_toggle(prefix, key) abort
+  let l:specific = a:prefix . '_' . a:key
+  let l:bspec = 'b:circuit_' . l:specific
+  if exists(l:bspec)
+    return eval(l:bspec)
+  endif
+  let l:gspec = 'g:circuit_' . l:specific
+  if exists(l:gspec)
+    return eval(l:gspec)
+  endif
+  return s:get(a:prefix, 1)
+endfunction
+
+function! s:maybe_start(key) abort
+  if s:term_alive()
+    return 1
+  endif
+  if !s:get_toggle('start_on', a:key)
+    echo 'vim-circuit: no active terminal'
+    return 0
+  endif
+  call circuit#toggle()
+  return s:term_alive()
+endfunction
+
+function! s:maybe_show(key) abort
+  if bufwinid(s:term_bufnr) ==# -1 && s:get_toggle('show_on', a:key)
+    call s:show()
+  endif
 endfunction
 
 function! s:maybe_enable_autoread_for_session() abort
@@ -383,7 +412,6 @@ function! s:cleanup_after_circuit_job_exit() abort
   if !bufexists(s:term_bufnr)
     let s:term_bufnr = -1
     let s:term_winid = -1
-    let s:is_zoomed = 0
     call s:maybe_restore_autoread_after_session()
     return
   endif
@@ -393,7 +421,6 @@ function! s:cleanup_after_circuit_job_exit() abort
   call s:close_circuit_buffer_window()
   let s:term_bufnr = -1
   let s:term_winid = -1
-  let s:is_zoomed = 0
   call s:maybe_restore_autoread_after_session()
   call circuit#hooks#fire('TermExited')
 endfunction
@@ -405,7 +432,6 @@ function! s:kill_term_if_alive() abort
   endif
   let s:term_bufnr = -1
   let s:term_winid = -1
-  let s:is_zoomed = 0
   call s:maybe_restore_autoread_after_session()
 endfunction
 
@@ -441,14 +467,10 @@ function! circuit#set_mode(mode) abort
     return
   endif
 
-  if !s:term_alive()
-    call circuit#toggle()
-  else
-    let l:winid = bufwinid(s:term_bufnr)
-    if l:winid == -1
-      call s:show()
-    endif
+  if !s:maybe_start('mode')
+    return
   endif
+  call s:maybe_show('mode')
 
   call term_sendkeys(s:term_bufnr, l:p.mode_prefix . a:mode . "\n")
   let s:current_mode = a:mode
@@ -657,43 +679,11 @@ function! circuit#toggle_verbose() abort
 endfunction
 
 " ---------------------------------------------------------------------------
-" Zoom
-" ---------------------------------------------------------------------------
-
-function! circuit#zoom() abort
-  if !s:term_alive()
-    echo 'vim-circuit: no active terminal'
-    return
-  endif
-
-  let l:winid = bufwinid(s:term_bufnr)
-  if l:winid == -1
-    call s:show()
-    return
-  endif
-
-  if s:is_zoomed
-    let s:is_zoomed = 0
-    execute s:pre_zoom_winrestcmd
-    call circuit#hooks#fire('ZoomOut')
-  else
-    let s:pre_zoom_winrestcmd = winrestcmd()
-    let l:winnr = win_id2win(l:winid)
-    execute l:winnr . 'wincmd w'
-    wincmd |
-    wincmd _
-    let s:is_zoomed = 1
-    call circuit#hooks#fire('ZoomIn')
-  endif
-endfunction
-
-" ---------------------------------------------------------------------------
 " Send selection
 " ---------------------------------------------------------------------------
 
 function! circuit#send_selection(...) abort
-  if !s:term_alive()
-    echo 'vim-circuit: no active terminal'
+  if !s:maybe_start('send')
     return
   endif
 
@@ -708,6 +698,7 @@ function! circuit#send_selection(...) abort
     return
   endif
 
+  call s:maybe_show('send')
   let l:fname = expand('%:t')
   let l:header = '# From ' . l:fname
   let l:text = l:header . "\n" . join(l:lines, "\n") . "\n"
@@ -725,14 +716,10 @@ function! circuit#chat() abort
     return
   endif
 
-  if !s:term_alive()
-    call circuit#toggle()
-  else
-    let l:winid = bufwinid(s:term_bufnr)
-    if l:winid == -1
-      call s:show()
-    endif
+  if !s:maybe_start('chat')
+    return
   endif
+  call s:maybe_show('chat')
 
   let l:fname = expand('#:t')
   let l:context = ''
@@ -776,19 +763,17 @@ function! circuit#send_staged_ref() abort
     echo 'vim-circuit: no staged refs; use :CTref (see :help CTref)'
     return
   endif
-  if !s:term_alive()
-    echo 'vim-circuit: no active terminal'
+  if !s:maybe_start('refsend')
     return
   endif
-  let l:winid = bufwinid(s:term_bufnr)
-  if l:winid == -1
-    call s:show()
-  endif
+  call s:maybe_show('refsend')
   let l:text = join(s:staged_file_refs, "\n") . "\n"
   call term_sendkeys(s:term_bufnr, l:text)
   let s:staged_file_refs = []
   call circuit#hooks#fire('ChatRefSent')
-  call s:focus_term()
+  if bufwinid(s:term_bufnr) !=# -1
+    call s:focus_term()
+  endif
 endfunction
 
 " Expression mapping for |terminal| mode: send staged refs and Enter,
@@ -1041,7 +1026,7 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
 
   if l:nparts <= 2
     let l:subs = ['resume', 'continue', 'new', 'kill', 'pr', 'worktree',
-          \ 'plan', 'fast', 'mode', 'zoom', 'position', 'send', 'chat',
+          \ 'plan', 'fast', 'mode', 'position', 'send', 'chat',
           \ 'ref', 'refsend', 'refclear', 'reflist', 'model', 'verbose',
           \ 'doctor', 'version', 'undo', 'redo', 'export', 'stats',
           \ 'sessions', 'planopen', 'planexec', 'planclose',

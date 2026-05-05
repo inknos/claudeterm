@@ -10,7 +10,6 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'fast') >= 0
   Assert index(result, 'mode') >= 0
   Assert index(result, 'model') >= 0
-  Assert index(result, 'zoom') >= 0
   Assert index(result, 'position') >= 0
   Assert index(result, 'send') >= 0
   Assert index(result, 'chat') >= 0

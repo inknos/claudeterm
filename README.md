@@ -126,7 +126,6 @@ let g:circuit_provider = 'opencode'
 | `:CTerm worktree` | `:CTworktree` | `<leader>cw` | Launch in git worktree |
 | `:CTerm plan` | `:CTplan` | `<leader>cmp` | Toggle plan mode (provider-dependent) |
 | `:CTerm fast` | `:CTfast` | `<leader>cmf` | Toggle fast mode (provider-dependent) |
-| `:CTerm zoom` | `:CTzoom` | `<leader>cz` | Zoom toggle |
 | `:CTerm send` | `:CTsend` | `<leader>cs` (visual) | Send selection |
 | `:CTerm chat` | `:CTchat` | `<leader>ch` | Free-form chat |
 | `:CTerm model {name}` | `:CTmodel {name}` | — | Switch model |
@@ -160,8 +159,8 @@ autocmd User CTOpen echo "Agent session started"
 autocmd User CTReload echohl WarningMsg | echo "Buffers reloaded" | echohl None
 ```
 
-Events: `Open`, `ToggleShow`, `ToggleHide`, `Kill`, `ZoomIn`, `ZoomOut`,
-`Reload`, `ModeChange`, `SessionChange`, `Worktree`.
+Events: `Open`, `ToggleShow`, `ToggleHide`, `Kill`, `Reload`, `ModeChange`,
+`SessionChange`, `Worktree`.
 
 See `:help circuit-hooks` for details.
 

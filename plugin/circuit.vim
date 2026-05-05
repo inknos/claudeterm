@@ -29,6 +29,9 @@ let g:circuit_worktree_tmux    = get(g:, 'circuit_worktree_tmux', 0)
 
 let g:circuit_plan_close_on_exec = get(g:, 'circuit_plan_close_on_exec', 1)
 
+let g:circuit_start_on         = get(g:, 'circuit_start_on', 1)
+let g:circuit_show_on          = get(g:, 'circuit_show_on', 1)
+
 let g:circuit_auto_reload      = get(g:, 'circuit_auto_reload', 1)
 let g:circuit_reload_interval  = get(g:, 'circuit_reload_interval', 1000)
 let g:circuit_notify_reload    = get(g:, 'circuit_notify_reload', 1)
@@ -67,7 +70,6 @@ command! -nargs=0 CTcontinue call circuit#continue()
 command! -nargs=0 CTnew      call circuit#new()
 command! -nargs=0 CTkill     call circuit#kill()
 command! -nargs=0 CTpr       call circuit#from_pr()
-command! -nargs=0 CTzoom     call circuit#zoom()
 command! -nargs=0 CTplan      call circuit#set_mode('plan')
 command! -nargs=0 CTfast      call circuit#set_mode('fast')
 command! -nargs=0 CTnormal    call circuit#set_mode('normal')
@@ -111,8 +113,6 @@ function! s:dispatch(...) abort
     call circuit#kill()
   elseif l:cmd ==# 'pr'
     call circuit#from_pr()
-  elseif l:cmd ==# 'zoom'
-    call circuit#zoom()
   elseif l:cmd ==# 'send'
     call circuit#send_selection()
   elseif l:cmd ==# 'ref'

@@ -23,7 +23,7 @@ plugin/circuit.vim                ← loaded once at startup
   • FocusGained/BufEnter autocommand for checktime
 
 autoload/circuit.vim              ← lazy-loaded on first circuit# call
-  • s: script-local state (term_bufnr, zoom, timer, mode, model)
+  • s: script-local state (term_bufnr, timer, mode, model)
   • s: helpers (get, git_root, build_cmd, open_split, provider, ...)
   • circuit# public functions (toggle, resume, continue, new, ...)
   • provider-aware: reads flags from circuit#providers#current()
@@ -181,7 +181,6 @@ block.
 |---|---|---|---|---|
 | Toggle | `circuit#toggle()` | (default) | `:CT` | `g:circuit_map_toggle` |
 | Resume | `circuit#resume()` | `resume` | `:CTresume` | `g:circuit_map_resume` |
-| Zoom | `circuit#zoom()` | `zoom` | `:CTzoom` | `g:circuit_map_zoom` |
 | Model | `circuit#set_model()` | `model` | `:CTmodel` | — |
 | Undo | `circuit#undo()` | `undo` | `:CTundo` | `g:circuit_map_undo` |
 | Sessions | `circuit#sessions()` | `sessions` | `:CTsessions` | `g:circuit_map_sessions` |

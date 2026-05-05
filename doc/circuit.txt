@@ -36,6 +36,7 @@ CONTENTS                                              *circuit-contents*
      10.2 Auto-Reload ................... |circuit-config-reload|
      10.3 Keymaps ....................... |circuit-config-keymaps|
      10.4 Display ....................... |circuit-config-display|
+     10.5 Session Control .............. |circuit-config-session-control|
  11. Troubleshooting ...................... |circuit-troubleshooting|
 
 ==============================================================================
@@ -213,10 +214,6 @@ support print a warning.
 
 ------------------------------------------------------------------------------
 6.3 Window Control                                    *circuit-window*
-
-                                                      *:CTzoom*
-:CTerm zoom             Toggle zoom: maximize the terminal to full-screen,
-:CTzoom                 or restore the previous split layout.
 
                                                       *:CTerm-position*
 :CTerm position {pos}   Move the terminal to a different split position.
@@ -432,7 +429,7 @@ These keymaps are active when the cursor is inside any terminal buffer.
 
   :CTerm <Tab>           Completes subcommands: `resume`, `continue`,
                          `new`, `kill`, `pr`, `worktree`, `plan`,
-                         `fast`, `mode`, `zoom`, `position`, `send`,
+                         `fast`, `mode`, `position`, `send`,
                          `chat`, `ref`, `refsend`, `refclear`,
                          `reflist`, `model`, `verbose`, `doctor`,
                          `version`, `undo`, `redo`, `export`, `stats`,
@@ -470,8 +467,6 @@ Available events:
   CTToggleHide            Terminal hidden
   CTKill                  Terminal killed
   CTTermExited            Agent process exited (split closed, buffer wiped)
-  CTZoomIn                Terminal zoomed to full-screen
-  CTZoomOut               Terminal restored from zoom
   CTReload                One or more buffers auto-reloaded
   CTModeChange            Interactive mode changed
   CTSessionChange         Session switched (resume/continue/new/pr)
@@ -669,6 +664,116 @@ g:circuit_hide_numbers      Number (default: `1`)
                                                 *g:circuit_hide_signcolumn*
 g:circuit_hide_signcolumn   Number (default: `1`)
                             Hide the sign column in the terminal window.
+
+------------------------------------------------------------------------------
+10.5 Session Control                      *circuit-config-session-control*
+
+These variables control whether commands auto-start a terminal session
+and whether they reveal a hidden terminal split.
+
+                                                *g:circuit_start_on*
+g:circuit_start_on          Number (default: `1`)
+                            Global default for auto-starting a session.
+                            When `1`, commands like |:CTrefsend|, |:CTsend|,
+                            |:CTchat|, and |:CTplan| auto-start a new
+                            terminal session when none is active. When `0`,
+                            they print an error and do nothing.
+
+                                                *g:circuit_show_on*
+g:circuit_show_on           Number (default: `1`)
+                            Global default for revealing a hidden terminal.
+                            When `1`, the above commands open the terminal
+                            split if it is alive but hidden. When `0`, they
+                            send to the terminal buffer silently (no split,
+                            no focus change).
+
+Per-command overrides (unset by default; when defined, they take
+precedence over the global setting for that command):
+
+                                          *g:circuit_start_on_refsend*
+g:circuit_start_on_refsend  Number (default: unset, falls back to
+                            |g:circuit_start_on|)
+                            Override auto-start for |:CTrefsend|.
+
+                                          *g:circuit_show_on_refsend*
+g:circuit_show_on_refsend   Number (default: unset, falls back to
+                            |g:circuit_show_on|)
+                            Override reveal-on-send for |:CTrefsend|.
+
+                                          *g:circuit_start_on_send*
+g:circuit_start_on_send     Number (default: unset, falls back to
+                            |g:circuit_start_on|)
+                            Override auto-start for |:CTsend|.
+
+                                          *g:circuit_show_on_send*
+g:circuit_show_on_send      Number (default: unset, falls back to
+                            |g:circuit_show_on|)
+                            Override reveal-on-send for |:CTsend|.
+
+                                          *g:circuit_start_on_chat*
+g:circuit_start_on_chat     Number (default: unset, falls back to
+                            |g:circuit_start_on|)
+                            Override auto-start for |:CTchat|.
+
+                                          *g:circuit_show_on_chat*
+g:circuit_show_on_chat      Number (default: unset, falls back to
+                            |g:circuit_show_on|)
+                            Override reveal-on-send for |:CTchat|.
+
+                                          *g:circuit_start_on_mode*
+g:circuit_start_on_mode     Number (default: unset, falls back to
+                            |g:circuit_start_on|)
+                            Override auto-start for |:CTplan|, |:CTfast|,
+                            and |:CTnormal|.
+
+                                          *g:circuit_show_on_mode*
+g:circuit_show_on_mode      Number (default: unset, falls back to
+                            |g:circuit_show_on|)
+                            Override reveal-on-send for |:CTplan|,
+                            |:CTfast|, and |:CTnormal|.
+
+Resolution order (first defined wins): >
+  b:circuit_start_on_refsend
+  g:circuit_start_on_refsend
+  g:circuit_start_on
+  1 (hardcoded default)
+<
+
+Summary table: ~
+
+  Command          start_on override           show_on override ~
+  |:CTrefsend|       g:circuit_start_on_refsend   g:circuit_show_on_refsend
+  |:CTsend|          g:circuit_start_on_send       g:circuit_show_on_send
+  |:CTchat|          g:circuit_start_on_chat       g:circuit_show_on_chat
+  |:CTplan|/|:CTfast|  g:circuit_start_on_mode       g:circuit_show_on_mode
+
+  Global defaults: |g:circuit_start_on| (1)    |g:circuit_show_on| (1)
+
+  start_on = 1     Command auto-starts a new session when none is active.
+  start_on = 0     Command prints an error and does nothing.
+  show_on  = 1     Command reveals a hidden terminal split and focuses it.
+  show_on  = 0     Command sends to the terminal buffer silently (no
+                   split, no focus change).
+
+Commands not listed here are unaffected:
+  - Session starters (|:CT|, |:CTresume|, |:CTnew|, etc.) always open
+    a visible terminal.
+  - Silent commands (|:CTundo|, |:CTredo|, |:CTref|, etc.) never reveal
+    the split.
+
+Example configurations: >
+  " Default: every command starts and shows (the "just works" setup)
+  let g:circuit_start_on = 1
+  let g:circuit_show_on  = 1
+
+  " Silent mode: commands auto-start but never pop open the split
+  let g:circuit_start_on = 1
+  let g:circuit_show_on  = 0
+
+  " Selective: only :CTchat auto-starts; others bail
+  let g:circuit_start_on = 0
+  let g:circuit_start_on_chat = 1
+<
 
 ==============================================================================
 11. Troubleshooting                          *circuit-troubleshooting*
