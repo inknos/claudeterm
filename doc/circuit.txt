@@ -63,9 +63,9 @@ vim-circuit supports multiple agent CLI backends. Set
 |g:circuit_provider| in your |vimrc| to choose which one to use.
 
                                                 *g:circuit_provider*
-g:circuit_provider      String (default: `'claude'`)
+g:circuit_provider      String (default: `'opencode'`)
                         The active provider. Valid values:
-                        `'claude'`, `'agent'`, `'gemini'`, `'opencode'`.
+                        `'opencode'`, `'claude'`, `'agent'`, `'gemini'`.
 
 Available providers:
 
@@ -125,11 +125,12 @@ After installing, run: >
 ==============================================================================
 5. Quick Start                                     *circuit-quickstart*
 
-Set your provider in your vimrc:                  *:CTerm* *:CT*
+The default provider is OpenCode. To use a different   *:CTerm* *:CT*
+provider, add to your vimrc:
 >
-  let g:circuit_provider = 'opencode'
+  let g:circuit_provider = 'claude'
 <
-Open an agent terminal:
+Open an agent terminal (uses opencode by default):
 >
   :CTerm
   " or press <leader>c
@@ -498,10 +499,10 @@ Set variables in your |vimrc| before the plugin loads, or at any time
 10.1 Core                                       *circuit-config-core*
 
                                                 *g:circuit_provider*
-g:circuit_provider          String (default: `'claude'`)
+g:circuit_provider          String (default: `'opencode'`)
                             The active provider backend. See
                             |circuit-providers| for valid values and the
-                            feature matrix. OpenCode is recommended.
+                            feature matrix.
 
                                                 *g:circuit_command*
 g:circuit_command           String (default: `''`)

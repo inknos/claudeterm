@@ -63,15 +63,17 @@ Then run `:helptags ALL` in Vim.
 
 ## Provider Setup
 
-**You must set `g:circuit_provider`** in your `.vimrc` to tell vim-circuit
-which CLI to use. There is no auto-detection.
+The default provider is **OpenCode** (`g:circuit_provider = 'opencode'`).
+If you have `opencode` installed and on `$PATH`, the plugin works out of
+the box with no extra configuration.
+
+To use a different provider, set `g:circuit_provider` in your `.vimrc`:
 
 ```vim
-" Required — pick your provider
-let g:circuit_provider = 'opencode'
+let g:circuit_provider = 'claude'   " or 'gemini', 'agent'
 ```
 
-Valid values: `'opencode'`, `'claude'`, `'gemini'`, `'agent'`.
+Valid values: `'opencode'` (default), `'claude'`, `'gemini'`, `'agent'`.
 
 If you need to override the CLI binary name or path (e.g. you renamed
 the binary or it's not on `$PATH`), set `g:circuit_command`:
@@ -103,15 +105,15 @@ Not all CLIs support the same features. Here's what works where:
 ## Quick Start
 
 ```vim
-" Set your provider first
-let g:circuit_provider = 'opencode'
-
 :CTerm              " Toggle agent terminal (or <leader>c)
-:CTerm resume       " Interactive session picker (or <leader>cr)
-:CTerm model {name} " Switch model (or <leader>cm)
-:CTerm worktree     " Launch in a git worktree (or <leader>cw)
+:CTerm resume       " Interactive session picker
+:CTerm model {name} " Switch model
+:CTerm worktree     " Launch in a git worktree
 :CTworktree!        " Launch worktree in tmux pane
 ```
+
+The default provider is OpenCode. To use a different one, see
+[Provider Setup](#provider-setup).
 
 ## Commands
 
@@ -138,7 +140,7 @@ let g:circuit_provider = 'opencode'
 Set any of these in your `.vimrc` before the plugin loads:
 
 ```vim
-" Provider (required)
+" Provider (default: 'opencode')
 let g:circuit_provider = 'opencode'
 
 " General

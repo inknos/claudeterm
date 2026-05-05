@@ -16,7 +16,7 @@ endif
 " Configuration defaults
 " ---------------------------------------------------------------------------
 
-let g:circuit_provider         = get(g:, 'circuit_provider', '')
+let g:circuit_provider         = get(g:, 'circuit_provider', 'opencode')
 let g:circuit_command          = get(g:, 'circuit_command', '')
 let g:circuit_position         = get(g:, 'circuit_position', 'right')
 let g:circuit_split_ratio      = get(g:, 'circuit_split_ratio', 0.4)
