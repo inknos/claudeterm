@@ -28,7 +28,8 @@ CONTENTS                                              *circuit-contents*
      6.13 Utility ........................ |circuit-utility|
   7. Keymaps .............................. |circuit-keymaps|
      7.1 Normal Mode ..................... |circuit-keymaps-normal|
-     7.2 Terminal Mode ................... |circuit-keymaps-terminal|
+     7.2 Visual Mode ..................... |circuit-keymaps-visual|
+     7.3 Terminal Mode ................... |circuit-keymaps-terminal|
   8. Tab-Completion ....................... |circuit-completion|
   9. Hooks ................................ |circuit-hooks|
  10. Configuration ........................ |circuit-configuration|
@@ -407,7 +408,15 @@ or ex commands (|:CTerm|).
   <leader>[        Command prompt  |g:circuit_map_prompt|
 
 ------------------------------------------------------------------------------
-7.2 Terminal Mode                            *circuit-keymaps-terminal*
+7.2 Visual Mode                              *circuit-keymaps-visual*
+
+  Key              Action ~
+  <C-l>            Stage the selected lines as a ref, send to the agent
+                   terminal, and clear. Equivalent to |:CTref| + |:CTrefsend|
+                   in one step. See |g:circuit_vmap_c_l_sends_ref|.
+
+------------------------------------------------------------------------------
+7.3 Terminal Mode                            *circuit-keymaps-terminal*
 
 These keymaps are active when the cursor is inside any terminal buffer.
 
@@ -674,6 +683,15 @@ g:circuit_tmap_c_l_sends_staged
                             with |:CTrefsend| (e.g. if the agent TUI needs
                             raw |<C-l>|).
 
+                                                *g:circuit_vmap_c_l_sends_ref*
+g:circuit_vmap_c_l_sends_ref
+                            Number (default: `1`)
+                            When `1` and |g:circuit_map_keys| is on, |<C-l>|
+                            in |Visual| line mode stages the selected lines
+                            as a ref and sends it to the agent terminal in
+                            one step (|:CTref| + |:CTrefsend|). Set to `0`
+                            to disable.
+
 ------------------------------------------------------------------------------
 10.4 Display                                  *circuit-config-display*
 
@@ -762,6 +780,15 @@ g:circuit_show_on_mode      Number (default: unset, falls back to
                             |g:circuit_show_on|)
                             Override reveal-on-send for |:CTplan|,
                             |:CTfast|, and |:CTnormal|.
+
+                                                *g:circuit_sendkeys_delay*
+g:circuit_sendkeys_delay    Number (default: `200`)
+                            Milliseconds to wait before sending keys to a
+                            freshly started terminal. When |g:circuit_start_on|
+                            auto-starts a session, the agent CLI needs time
+                            to initialize before it can accept input. Increase
+                            this value if keys are lost on slow machines.
+                            Set to `0` to send immediately (not recommended).
 
 Resolution order (first defined wins): >
   b:circuit_start_on_refsend

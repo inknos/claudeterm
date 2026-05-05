@@ -23,6 +23,7 @@ let s:prompt_selected = 0
 let s:prompt_prefix = ''
 let s:prompt_props = []
 let s:env_warned = 0
+let s:just_started = 0
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -67,6 +68,7 @@ endfunction
 
 function! s:maybe_start(key) abort
   if s:term_alive()
+    let s:just_started = 0
     return 1
   endif
   if !s:get_toggle('start_on', a:key)
@@ -74,7 +76,27 @@ function! s:maybe_start(key) abort
     return 0
   endif
   call circuit#toggle()
-  return s:term_alive()
+  if s:term_alive()
+    let s:just_started = 1
+    return 1
+  endif
+  return 0
+endfunction
+
+function! s:sendkeys_cb(text, timer_id) abort
+  if s:term_alive()
+    call term_sendkeys(s:term_bufnr, a:text)
+  endif
+endfunction
+
+function! s:term_sendkeys_safe(text) abort
+  if s:just_started
+    let s:just_started = 0
+    let l:delay = s:get('sendkeys_delay', 200)
+    call timer_start(l:delay, function('s:sendkeys_cb', [a:text]))
+  else
+    call term_sendkeys(s:term_bufnr, a:text)
+  endif
 endfunction
 
 function! s:maybe_show(key) abort
@@ -533,7 +555,7 @@ function! circuit#set_mode(mode) abort
   endif
   call s:maybe_show('mode')
 
-  call term_sendkeys(s:term_bufnr, l:p.mode_prefix . a:mode . "\n")
+  call s:term_sendkeys_safe(l:p.mode_prefix . a:mode . "\n")
   let s:current_mode = a:mode
   call circuit#hooks#fire('ModeChange')
 endfunction
@@ -769,7 +791,7 @@ function! circuit#send_selection(...) abort
   let l:header = '# From ' . l:fname
   let l:text = l:header . "\n" . join(l:lines, "\n") . "\n"
 
-  call term_sendkeys(s:term_bufnr, l:text)
+  call s:term_sendkeys_safe(l:text)
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -793,7 +815,7 @@ function! circuit#chat() abort
     let l:context = '(context: ' . l:fname . ') '
   endif
 
-  call term_sendkeys(s:term_bufnr, l:context . l:msg . "\n")
+  call s:term_sendkeys_safe(l:context . l:msg . "\n")
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -834,7 +856,7 @@ function! circuit#send_staged_ref() abort
   endif
   call s:maybe_show('refsend')
   let l:text = join(s:staged_file_refs, "\n") . "\n"
-  call term_sendkeys(s:term_bufnr, l:text)
+  call s:term_sendkeys_safe(l:text)
   let s:staged_file_refs = []
   call circuit#hooks#fire('ChatRefSent')
   if s:get('refsend_switch_tab', 0)

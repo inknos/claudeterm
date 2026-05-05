@@ -48,11 +48,13 @@ let g:circuit_tmap_ch_left     = get(g:, 'circuit_tmap_ch_left', 0)
 " send it to the TUI; otherwise |<C-w>|l. Set to `0` to always use
 " |<C-w>|l and send via |:CTrefsend| only.
 let g:circuit_tmap_c_l_sends_staged = get(g:, 'circuit_tmap_c_l_sends_staged', 1)
+let g:circuit_vmap_c_l_sends_ref = get(g:, 'circuit_vmap_c_l_sends_ref', 1)
 " When 0, do not run |:checktime| on FocusGained/BufEnter (only the timer
 " may reload files). Can reduce cursor/redraw flicker with a busy :terminal.
 let g:circuit_checktime_on_bufenter = get(g:, 'circuit_checktime_on_bufenter', 1)
 let g:circuit_autoread_during_session = get(g:, 'circuit_autoread_during_session', 0)
 let g:circuit_refsend_switch_tab = get(g:, 'circuit_refsend_switch_tab', 0)
+let g:circuit_sendkeys_delay   = get(g:, 'circuit_sendkeys_delay', 200)
 
 " Keymap variables (all overridable)
 let g:circuit_map_toggle       = get(g:, 'circuit_map_toggle', '<leader>c')
@@ -202,6 +204,10 @@ if g:circuit_map_keys
     tnoremap <silent> <C-l> <C-\><C-n><C-w>l
   endif
   tnoremap <silent> <C-v> <C-\><C-n>"+pi
+
+  if g:circuit_vmap_c_l_sends_ref
+    xnoremap <silent> <C-l> :<C-u>call circuit#stage_and_send_ref(line("'<"), line("'>"))<CR>
+  endif
 endif
 
 " ---------------------------------------------------------------------------
