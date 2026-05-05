@@ -51,6 +51,7 @@ let g:circuit_tmap_c_l_sends_staged = get(g:, 'circuit_tmap_c_l_sends_staged', 1
 " may reload files). Can reduce cursor/redraw flicker with a busy :terminal.
 let g:circuit_checktime_on_bufenter = get(g:, 'circuit_checktime_on_bufenter', 1)
 let g:circuit_autoread_during_session = get(g:, 'circuit_autoread_during_session', 0)
+let g:circuit_refsend_switch_tab = get(g:, 'circuit_refsend_switch_tab', 0)
 
 " Keymap variables (all overridable)
 let g:circuit_map_toggle       = get(g:, 'circuit_map_toggle', '<leader>c')

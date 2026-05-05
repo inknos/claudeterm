@@ -252,6 +252,31 @@ function! s:focus_term() abort
   endif
 endfunction
 
+function! s:goto_term_tab() abort
+  if s:term_bufnr ==# -1 || !bufexists(s:term_bufnr)
+    return
+  endif
+  let l:winid = bufwinid(s:term_bufnr)
+  if l:winid !=# -1
+    call win_gotoid(l:winid)
+    call s:focus_term()
+    return
+  endif
+  for l:tab in range(1, tabpagenr('$'))
+    for l:b in tabpagebuflist(l:tab)
+      if l:b ==# s:term_bufnr
+        execute 'tabnext ' . l:tab
+        let l:winid = bufwinid(s:term_bufnr)
+        if l:winid !=# -1
+          call win_gotoid(l:winid)
+        endif
+        call s:focus_term()
+        return
+      endif
+    endfor
+  endfor
+endfunction
+
 function! s:term_alive() abort
   return s:term_bufnr != -1 && bufexists(s:term_bufnr)
         \ && getbufvar(s:term_bufnr, '&buftype') ==# 'terminal'
@@ -771,7 +796,9 @@ function! circuit#send_staged_ref() abort
   call term_sendkeys(s:term_bufnr, l:text)
   let s:staged_file_refs = []
   call circuit#hooks#fire('ChatRefSent')
-  if bufwinid(s:term_bufnr) !=# -1
+  if s:get('refsend_switch_tab', 0)
+    call s:goto_term_tab()
+  elseif bufwinid(s:term_bufnr) !=# -1
     call s:focus_term()
   endif
 endfunction

@@ -233,6 +233,9 @@ Execute (send_staged_ref bails when per-command start_on_refsend is 0):
   unlet g:circuit_start_on_refsend
   bdelete!
 
+Execute (refsend_switch_tab defaults to 0):
+  Assert g:circuit_refsend_switch_tab ==# 0
+
 Execute (send_selection bails when start_on is 0 and no terminal):
   let g:circuit_start_on = 0
   exec 'e' fnameescape(fnamemodify('test/vimrc', ':p'))

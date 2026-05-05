@@ -258,7 +258,9 @@ support print a warning.
 :CTrefsend              (one per line), then clear the list. Shows the
                         terminal if hidden and focuses it (enters terminal
                         mode). Same as a successful |<C-l>| in |terminal|
-                        mode when refs are pending.
+                        mode when refs are pending. When
+                        |g:circuit_refsend_switch_tab| is `1`, also
+                        switches to the tab containing the terminal.
 :[range]CTrefsend        Ignores the range; accepts one so
                         `:'<,'>CTrefsend` does not raise |E841| after
                         a visual selection.
@@ -699,6 +701,17 @@ g:circuit_start_on_refsend  Number (default: unset, falls back to
 g:circuit_show_on_refsend   Number (default: unset, falls back to
                             |g:circuit_show_on|)
                             Override reveal-on-send for |:CTrefsend|.
+
+                                          *g:circuit_refsend_switch_tab*
+g:circuit_refsend_switch_tab
+                            Number (default: `0`)
+                            When `1`, |:CTrefsend| switches to the tab
+                            containing the agent terminal after sending
+                            the staged refs. Useful when you keep the
+                            agent in a separate tab and edit code in
+                            another. When `0` (the default), only focuses
+                            the terminal if it is visible in the current
+                            tab.
 
                                           *g:circuit_start_on_send*
 g:circuit_start_on_send     Number (default: unset, falls back to

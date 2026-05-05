@@ -2,7 +2,7 @@
 
 ## Nice to have
 
-- [ ] Commands that open the terminal panel vs. commands that don't:
+- [x] Commands that open the terminal panel vs. commands that don't:
       some commands (e.g. `refsend`) should optionally open the terminal
       panel when executed; others should stay silent. Make this
       configurable per-command (e.g. `g:circuit_show_on_refsend`).
