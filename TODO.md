@@ -7,7 +7,7 @@
       panel when executed; others should stay silent. Make this
       configurable per-command (e.g. `g:circuit_show_on_refsend`).
 
-- [ ] Configurable terminal size: allow the user to set the terminal
+- [x] Configurable terminal size: allow the user to set the terminal
       split height/width independently of `g:circuit_split_ratio`
       (e.g. fixed column count or row count).
 
