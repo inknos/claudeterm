@@ -26,6 +26,7 @@ let g:circuit_permission_mode  = get(g:, 'circuit_permission_mode', '')
 let g:circuit_model            = get(g:, 'circuit_model', '')
 let g:circuit_extra_args       = get(g:, 'circuit_extra_args', '')
 let g:circuit_worktree_tmux    = get(g:, 'circuit_worktree_tmux', 0)
+let g:circuit_env              = get(g:, 'circuit_env', {})
 
 let g:circuit_plan_close_on_exec = get(g:, 'circuit_plan_close_on_exec', 1)
 

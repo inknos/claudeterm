@@ -32,6 +32,7 @@ let s:providers.claude = {
       \   'redo': '',
       \   'export': '',
       \ },
+      \ 'env': {},
       \ }
 
 let s:providers.agent = {
@@ -58,6 +59,7 @@ let s:providers.agent = {
       \   'redo': '',
       \   'export': '',
       \ },
+      \ 'env': {},
       \ }
 
 let s:providers.gemini = {
@@ -84,6 +86,7 @@ let s:providers.gemini = {
       \   'redo': '',
       \   'export': '',
       \ },
+      \ 'env': {},
       \ }
 
 let s:providers.opencode = {
@@ -110,6 +113,7 @@ let s:providers.opencode = {
       \   'redo': '/redo',
       \   'export': '/export',
       \ },
+      \ 'env': {'OPENCODE_EXPERIMENTAL_PLAN_MODE': '1'},
       \ }
 
 " ---------------------------------------------------------------------------

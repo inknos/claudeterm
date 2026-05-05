@@ -96,6 +96,7 @@ Feature matrix:                            *circuit-provider-features*
   Export                    —       —      —       ✓
   Stats                     —       —      —       ✓
   Session list              —       ✓      ✓       ✓
+  Provider env vars         —       —      —       ✓
 
 When you use a feature not supported by your provider, the plugin
 prints a warning instead of failing silently.
@@ -561,6 +562,22 @@ g:circuit_plan_close_on_exec
                             buffer after sending the plan. Set to `0`
                             to keep the plan buffer open.
 
+                                                *g:circuit_env*
+g:circuit_env               Dictionary (default: `{}`)
+                            Extra environment variables passed to the
+                            agent terminal via |term_start()|. Merged
+                            with the provider's built-in `env` dict;
+                            user values take precedence.
+
+                            The OpenCode provider sets
+                            `OPENCODE_EXPERIMENTAL_PLAN_MODE=1` by
+                            default. Override or extend: >
+  let g:circuit_env = {'MY_VAR': 'value'}
+<
+                            Requires Vim patch 8.0.902+. On older Vim
+                            versions, env vars are silently skipped
+                            (a one-time warning is printed).
+
 ------------------------------------------------------------------------------
 10.2 Auto-Reload                               *circuit-config-reload*
 
@@ -831,6 +848,13 @@ OpenCode prints JSON (`sessionID`, `invalid_format`, `ses`, etc.)~
   |:CTnew| to start without `--continue`, and check OpenCode
   project issues for the exact message. If the session still works,
   the line is often harmless noise from a background request.
+
+Provider env vars not applied~
+  If you see the warning "Vim patch 8.0.902+ required for provider env
+  vars", your Vim is too old to pass per-job environment variables via
+  |term_start()|. Upgrade to Vim 8.1+ or set the variables in your
+  shell profile instead (e.g. `export OPENCODE_EXPERIMENTAL_PLAN_MODE=1`
+  in `.bashrc`). See |g:circuit_env|.
 
 Keymaps conflict~
   Set `g:circuit_map_keys = 0` to disable all defaults, then define

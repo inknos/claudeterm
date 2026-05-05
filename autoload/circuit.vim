@@ -22,6 +22,7 @@ let s:prompt_matches = []
 let s:prompt_selected = 0
 let s:prompt_prefix = ''
 let s:prompt_props = []
+let s:env_warned = 0
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -52,12 +53,24 @@ function! s:get_toggle(prefix, key) abort
   return s:get(a:prefix, 1)
 endfunction
 
+function! s:msg(text) abort
+  echo 'vim-circuit: ' . a:text
+endfunction
+
+function! s:warn(text) abort
+  echohl WarningMsg | echomsg 'vim-circuit: ' . a:text | echohl None
+endfunction
+
+function! s:err(text) abort
+  echoerr 'vim-circuit: ' . a:text
+endfunction
+
 function! s:maybe_start(key) abort
   if s:term_alive()
     return 1
   endif
   if !s:get_toggle('start_on', a:key)
-    echo 'vim-circuit: no active terminal'
+    call s:warn('no active terminal')
     return 0
   endif
   call circuit#toggle()
@@ -147,6 +160,24 @@ function! s:needs_provider() abort
   endif
   call s:show_setup_guide()
   return 1
+endfunction
+
+function! s:merged_env() abort
+  let l:p = s:provider()
+  let l:env = copy(get(l:p, 'env', {}))
+  let l:user_env = s:get('env', {})
+  call extend(l:env, l:user_env)
+  if empty(l:env)
+    return {}
+  endif
+  if !has('patch-8.0.902')
+    if !s:env_warned
+      call s:warn('Vim patch 8.0.902+ required for provider env vars; skipping')
+      let s:env_warned = 1
+    endif
+    return {}
+  endif
+  return l:env
 endfunction
 
 function! s:show_setup_guide() abort
@@ -346,7 +377,7 @@ function! circuit#resume() abort
     return
   endif
   if empty(l:p.resume)
-    echo 'vim-circuit: resume not supported by ' . g:circuit_provider
+    call s:warn('resume not supported by ' . g:circuit_provider)
     return
   endif
   call s:kill_term_if_alive()
@@ -381,7 +412,7 @@ function! circuit#from_pr() abort
   endif
   let l:p = s:provider()
   if empty(l:p.from_pr_flag)
-    echo 'vim-circuit: from-pr not supported by ' . g:circuit_provider
+    call s:warn('from-pr not supported by ' . g:circuit_provider)
     return
   endif
   call s:kill_term_if_alive()
@@ -466,7 +497,12 @@ function! s:open_with_cmd(cmd) abort
   let l:saved_dir = getcwd()
   execute 'lcd ' . fnameescape(l:cwd)
   call s:open_split()
-  execute 'terminal ++curwin ++close ' . a:cmd
+  let l:opts = {'curwin': 1, 'term_finish': 'close'}
+  let l:env = s:merged_env()
+  if !empty(l:env)
+    let l:opts.env = l:env
+  endif
+  call term_start(a:cmd, l:opts)
   execute 'lcd ' . fnameescape(l:saved_dir)
   let s:term_bufnr = bufnr('%')
   let s:term_winid = win_getid()
@@ -488,7 +524,7 @@ function! circuit#set_mode(mode) abort
   endif
   let l:p = s:provider()
   if empty(l:p.modes)
-    echo 'vim-circuit: interactive modes not supported by ' . g:circuit_provider
+    call s:warn('interactive modes not supported by ' . g:circuit_provider)
     return
   endif
 
@@ -567,18 +603,18 @@ function! circuit#plan_exec() abort
     return
   endif
   if s:plan_bufnr == -1 || !bufexists(s:plan_bufnr)
-    echo 'vim-circuit: no plan buffer open (use :CTplanopen)'
+    call s:warn('no plan buffer open (use :CTplanopen)')
     return
   endif
   if !s:term_alive()
-    echo 'vim-circuit: no active terminal'
+    call s:warn('no active terminal')
     return
   endif
 
   let l:lines = getbufline(s:plan_bufnr, 1, '$')
   let l:text = join(l:lines, "\n")
   if empty(trim(l:text))
-    echo 'vim-circuit: plan buffer is empty'
+    call s:warn('plan buffer is empty')
     return
   endif
 
@@ -599,7 +635,7 @@ endfunction
 
 function! circuit#plan_close() abort
   if s:plan_bufnr == -1 || !bufexists(s:plan_bufnr)
-    echo 'vim-circuit: no plan buffer to close'
+    call s:warn('no plan buffer to close')
     return
   endif
 
@@ -630,7 +666,7 @@ function! circuit#set_model(model) abort
   endif
   let l:p = s:provider()
   if empty(l:p.model_flag)
-    echo 'vim-circuit: model switching not supported by ' . g:circuit_provider
+    call s:warn('model switching not supported by ' . g:circuit_provider)
     return
   endif
   let s:current_model = a:model
@@ -649,7 +685,7 @@ function! circuit#worktree(name, bang) abort
   endif
   let l:p = s:provider()
   if empty(l:p.worktree_flag)
-    echo 'vim-circuit: worktree not supported by ' . g:circuit_provider
+    call s:warn('worktree not supported by ' . g:circuit_provider)
     return
   endif
 
@@ -670,7 +706,12 @@ function! circuit#worktree(name, bang) abort
   let l:saved_dir = getcwd()
   execute 'lcd ' . fnameescape(l:cwd)
   call s:open_split()
-  execute 'terminal ++curwin ++close ' . l:cmd
+  let l:opts = {'curwin': 1, 'term_finish': 'close'}
+  let l:env = s:merged_env()
+  if !empty(l:env)
+    let l:opts.env = l:env
+  endif
+  call term_start(l:cmd, l:opts)
   execute 'lcd ' . fnameescape(l:saved_dir)
 
   let s:term_bufnr = bufnr('%')
@@ -693,14 +734,14 @@ function! circuit#toggle_verbose() abort
   endif
   let l:p = s:provider()
   if empty(l:p.verbose_flag)
-    echo 'vim-circuit: verbose not supported by ' . g:circuit_provider
+    call s:warn('verbose not supported by ' . g:circuit_provider)
     return
   endif
   let s:verbose = !s:verbose
   call s:kill_term_if_alive()
   let l:cmd = s:build_cmd(l:p.continue)
   call s:open_with_cmd(l:cmd)
-  echo 'vim-circuit: verbose ' . (s:verbose ? 'ON' : 'OFF')
+  call s:msg('verbose ' . (s:verbose ? 'ON' : 'OFF'))
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -773,7 +814,7 @@ function! circuit#stage_ref(line1, line2) abort
     let l:ref = s:ref_path_pretty() . ':' . l:a . '-' . l:b
   endif
   call add(s:staged_file_refs, l:ref)
-  echo 'vim-circuit: staged ' . l:ref . ' (' . len(s:staged_file_refs) . ' pending)'
+  call s:msg('staged ' . l:ref . ' (' . len(s:staged_file_refs) . ' pending)')
   call circuit#hooks#fire('ChatRefStaged')
 endfunction
 
@@ -785,7 +826,7 @@ endfunction
 
 function! circuit#send_staged_ref() abort
   if empty(s:staged_file_refs)
-    echo 'vim-circuit: no staged refs; use :CTref (see :help CTref)'
+    call s:warn('no staged refs; use :CTref (see :help CTref)')
     return
   endif
   if !s:maybe_start('refsend')
@@ -818,16 +859,16 @@ endfunction
 
 function! circuit#clear_staged_refs() abort
   let s:staged_file_refs = []
-  echo 'vim-circuit: staged refs cleared'
+  call s:msg('staged refs cleared')
   call circuit#hooks#fire('ChatRefCleared')
 endfunction
 
 function! circuit#list_staged_refs() abort
   if empty(s:staged_file_refs)
-    echo 'vim-circuit: no staged refs'
+    call s:msg('no staged refs')
     return
   endif
-  echo 'vim-circuit: staged refs (' . len(s:staged_file_refs) . '):'
+  call s:msg('staged refs (' . len(s:staged_file_refs) . '):')
   let l:i = 1
   for l:ref in s:staged_file_refs
     echo '  ' . l:i . '. ' . l:ref
@@ -841,7 +882,7 @@ endfunction
 
 function! circuit#set_position(pos) abort
   if index(['right', 'left', 'top', 'bottom'], a:pos) == -1
-    echoerr 'vim-circuit: invalid position "' . a:pos . '". Use right/left/top/bottom.'
+    call s:err('invalid position "' . a:pos . '". Use right/left/top/bottom.')
     return
   endif
   let g:circuit_position = a:pos
@@ -861,7 +902,7 @@ function! circuit#doctor() abort
   endif
   let l:p = s:provider()
   if empty(l:p.doctor_cmd)
-    echo 'vim-circuit: health check not supported by ' . g:circuit_provider
+    call s:warn('health check not supported by ' . g:circuit_provider)
     return
   endif
   let l:override = s:get('command', '')
@@ -936,7 +977,7 @@ function! s:reload_check(timer_id) abort
   endif
   if l:reloaded
     if s:get('notify_reload', 1)
-      echohl WarningMsg | echo 'vim-circuit: buffers reloaded' | echohl None
+      call s:warn('buffers reloaded')
     endif
     call circuit#hooks#fire('Reload')
   endif
@@ -953,11 +994,11 @@ function! circuit#undo() abort
   let l:p = s:provider()
   let l:cmd = get(l:p.slash_commands, 'undo', '')
   if empty(l:cmd)
-    echo 'vim-circuit: undo not supported by ' . g:circuit_provider
+    call s:warn('undo not supported by ' . g:circuit_provider)
     return
   endif
   if !s:term_alive()
-    echo 'vim-circuit: no active terminal'
+    call s:warn('no active terminal')
     return
   endif
   call term_sendkeys(s:term_bufnr, l:cmd . "\n")
@@ -971,11 +1012,11 @@ function! circuit#redo() abort
   let l:p = s:provider()
   let l:cmd = get(l:p.slash_commands, 'redo', '')
   if empty(l:cmd)
-    echo 'vim-circuit: redo not supported by ' . g:circuit_provider
+    call s:warn('redo not supported by ' . g:circuit_provider)
     return
   endif
   if !s:term_alive()
-    echo 'vim-circuit: no active terminal'
+    call s:warn('no active terminal')
     return
   endif
   call term_sendkeys(s:term_bufnr, l:cmd . "\n")
@@ -993,11 +1034,11 @@ function! circuit#export() abort
   let l:p = s:provider()
   let l:cmd = get(l:p.slash_commands, 'export', '')
   if empty(l:cmd)
-    echo 'vim-circuit: export not supported by ' . g:circuit_provider
+    call s:warn('export not supported by ' . g:circuit_provider)
     return
   endif
   if !s:term_alive()
-    echo 'vim-circuit: no active terminal'
+    call s:warn('no active terminal')
     return
   endif
   call term_sendkeys(s:term_bufnr, l:cmd . "\n")
@@ -1014,7 +1055,7 @@ function! circuit#stats() abort
   endif
   let l:p = s:provider()
   if empty(l:p.stats_cmd)
-    echo 'vim-circuit: stats not supported by ' . g:circuit_provider
+    call s:warn('stats not supported by ' . g:circuit_provider)
     return
   endif
   let l:override = s:get('command', '')

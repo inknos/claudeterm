@@ -20,3 +20,8 @@
 - [ ] Smarter sorting in the floating prompt: sort options by relevance
       or frequency of use rather than alphabetically. Consider showing
       recently used commands first and grouping related commands.
+
+- [ ] Manual test: verify `term_start()` with `env` option works
+      correctly with a real opencode session. Confirm
+      `OPENCODE_EXPERIMENTAL_PLAN_MODE=1` is visible in the terminal
+      environment and that plan mode works as expected.
