@@ -1309,6 +1309,32 @@ function! circuit#ping() abort
 endfunction
 
 " ---------------------------------------------------------------------------
+" TUI pickers (server-only)
+" ---------------------------------------------------------------------------
+
+function! circuit#open_sessions() abort
+  call s:server_ensure()
+  if !s:server_running()
+    call s:warn('server not running')
+    return
+  endif
+  if !s:server_post('/tui/open-sessions', {})
+    call s:warn('failed to open sessions picker')
+  endif
+endfunction
+
+function! circuit#open_models() abort
+  call s:server_ensure()
+  if !s:server_running()
+    call s:warn('server not running')
+    return
+  endif
+  if !s:server_post('/tui/open-models', {})
+    call s:warn('failed to open models picker')
+  endif
+endfunction
+
+" ---------------------------------------------------------------------------
 " Tab-completion helper
 " ---------------------------------------------------------------------------
 
@@ -1322,7 +1348,7 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
           \ 'ref', 'refsend', 'refclear', 'reflist', 'model', 'verbose',
           \ 'doctor', 'version', 'undo', 'redo', 'export', 'stats',
           \ 'sessions', 'planopen', 'planexec', 'planclose',
-          \ 'prompt', 'ping', 'serve']
+          \ 'prompt', 'ping', 'serve', 'pick', 'models']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')
   endif
 

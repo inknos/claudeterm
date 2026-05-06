@@ -101,6 +101,8 @@ command! -nargs=0 CTsessions call circuit#sessions()
 command! -nargs=0 CTprompt   call circuit#prompt()
 command! -nargs=0 CTping     call circuit#ping()
 command! -nargs=0 CTserve    call circuit#server_start()
+command! -nargs=0 CTpick     call circuit#open_sessions()
+command! -nargs=0 CTmodels   call circuit#open_models()
 
 function! s:dispatch(...) abort
   if a:0 == 0
@@ -184,6 +186,10 @@ function! s:dispatch(...) abort
     call circuit#ping()
   elseif l:cmd ==# 'serve'
     call circuit#server_start()
+  elseif l:cmd ==# 'pick'
+    call circuit#open_sessions()
+  elseif l:cmd ==# 'models'
+    call circuit#open_models()
   else
     echoerr 'vim-circuit: unknown subcommand "' . l:cmd . '"'
   endif
