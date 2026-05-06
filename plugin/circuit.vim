@@ -19,7 +19,7 @@ endif
 let g:circuit_provider         = get(g:, 'circuit_provider', 'opencode')
 let g:circuit_command          = get(g:, 'circuit_command', '')
 let g:circuit_position         = get(g:, 'circuit_position', 'right')
-let g:circuit_split_ratio      = get(g:, 'circuit_split_ratio', 0.4)
+let g:circuit_split_ratio      = get(g:, 'circuit_split_ratio', 0.5)
 let g:circuit_enter_insert     = get(g:, 'circuit_enter_insert', 1)
 let g:circuit_use_git_root     = get(g:, 'circuit_use_git_root', 1)
 let g:circuit_model            = get(g:, 'circuit_model', '')

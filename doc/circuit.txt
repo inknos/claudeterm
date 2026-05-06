@@ -461,7 +461,7 @@ g:circuit_position          String (default: `'right'`)
                             `'bottom'`.
 
                                                 *g:circuit_split_ratio*
-g:circuit_split_ratio       Float (default: `0.4`)
+g:circuit_split_ratio       Float (default: `0.5`)
                             Terminal size as a fraction of the screen.
 
                                                 *g:circuit_enter_insert*

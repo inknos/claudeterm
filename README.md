@@ -93,7 +93,7 @@ Set any of these in your `.vimrc` before the plugin loads:
 ```vim
 " General
 let g:circuit_position = 'bottom'       " right (default), left, top, bottom
-let g:circuit_split_ratio = 0.3         " fraction of screen (default 0.4)
+let g:circuit_split_ratio = 0.3         " fraction of screen (default 0.5)
 let g:circuit_model = ''                " default model
 let g:circuit_map_keys = 0              " disable all default keymaps
 ```
