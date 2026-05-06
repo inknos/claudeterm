@@ -1,51 +1,19 @@
-Execute (circuit#providers#list returns all four providers):
+Execute (circuit#providers#list returns opencode):
   let providers = sort(circuit#providers#list())
-  AssertEqual ['agent', 'claude', 'gemini', 'opencode'], providers
+  AssertEqual ['opencode'], providers
 
-Execute (circuit#providers#get returns claude dict with expected keys):
-  let p = circuit#providers#get('claude')
-  AssertEqual 'claude', p.command
-  AssertEqual '--continue', p.continue
-  AssertEqual '--resume', p.resume
-  AssertEqual '--model', p.model_flag
-  AssertEqual '--permission-mode', p.permission_flag
-  AssertEqual '--verbose', p.verbose_flag
-  AssertEqual '--worktree', p.worktree_flag
-  AssertEqual '--tmux', p.tmux_flag
-  AssertEqual '--from-pr', p.from_pr_flag
-  AssertEqual '--version', p.version_flag
-  AssertEqual 'doctor', p.doctor_cmd
-  Assert index(p.modes, 'plan') >= 0
-  Assert index(p.models, 'sonnet') >= 0
-
-Execute (circuit#providers#get returns agent dict):
-  let p = circuit#providers#get('agent')
-  AssertEqual 'agent', p.command
-  AssertEqual '--mode', p.permission_flag
-  AssertEqual 'about', p.doctor_cmd
-  AssertEqual 'ls', p.session_list_cmd
-  Assert index(p.modes, 'plan') >= 0
-  Assert index(p.modes, 'ask') >= 0
-
-Execute (circuit#providers#get returns gemini dict):
-  let p = circuit#providers#get('gemini')
-  AssertEqual 'gemini', p.command
-  AssertEqual '-r "latest"', p.continue
-  AssertEqual '-r', p.resume
-  AssertEqual '--approval-mode', p.permission_flag
-  AssertEqual '--debug', p.verbose_flag
-  Assert index(p.models, 'pro') >= 0
-  Assert index(p.models, 'flash') >= 0
-
-Execute (circuit#providers#get returns opencode dict):
+Execute (circuit#providers#get returns opencode dict with expected keys):
   let p = circuit#providers#get('opencode')
   AssertEqual 'opencode', p.command
-  AssertEqual '', p.resume
+  AssertEqual '--continue', p.continue
+  AssertEqual '--model', p.model_flag
+  AssertEqual '--version', p.version_flag
   AssertEqual 'stats', p.stats_cmd
   AssertEqual 'session list', p.session_list_cmd
   AssertEqual '/undo', p.slash_commands.undo
   AssertEqual '/redo', p.slash_commands.redo
   AssertEqual '/export', p.slash_commands.export
+  Assert index(p.modes, 'plan') >= 0
 
 Execute (circuit#providers#get throws for unknown provider):
   AssertThrows call circuit#providers#get('nonexistent')
@@ -55,27 +23,18 @@ Execute (circuit#providers#current reads g:circuit_provider):
   let g:circuit_provider = 'opencode'
   let p = circuit#providers#current()
   AssertEqual 'opencode', p.command
-  let g:circuit_provider = 'claude'
 
 Execute (circuit#providers#current returns empty dict when provider is empty):
   let g:circuit_provider = ''
   let p = circuit#providers#current()
   AssertEqual {}, p
-  let g:circuit_provider = 'claude'
+  let g:circuit_provider = 'opencode'
 
 Execute (circuit#providers#configured returns 0 when no provider set):
   let g:circuit_provider = ''
   AssertEqual 0, circuit#providers#configured()
-  let g:circuit_provider = 'claude'
+  let g:circuit_provider = 'opencode'
 
 Execute (circuit#providers#configured returns 1 when provider set):
   let g:circuit_provider = 'opencode'
   AssertEqual 1, circuit#providers#configured()
-  let g:circuit_provider = 'claude'
-
-Execute (all providers have the same set of keys):
-  let expected_keys = sort(keys(circuit#providers#get('claude')))
-  for name in circuit#providers#list()
-    let actual_keys = sort(keys(circuit#providers#get(name)))
-    AssertEqual expected_keys, actual_keys, 'Provider ' . name . ' has mismatched keys'
-  endfor

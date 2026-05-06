@@ -2,14 +2,14 @@
 
 ## Overview
 
-A Vim plugin that embeds any agent CLI in Vim's built-in `:terminal`.
+A Vim plugin that embeds OpenCode in Vim's built-in `:terminal`.
 Single persistent terminal per project, toggle show/hide without losing
 session state, commands and keymaps for session control, mode switching,
-model selection, worktree support, and more.
+model selection, and more.
 
 **Language:** Vimscript only. No Python, Lua, Node, or external build tools.
 
-**Runtime requirements:** Vim 8.0+ with `+terminal`, an agent CLI on `$PATH`, Git.
+**Runtime requirements:** Vim 8.0+ with `+terminal`, `opencode` on `$PATH`, Git.
 
 ## Architecture
 
@@ -17,7 +17,7 @@ model selection, worktree support, and more.
 plugin/circuit.vim                ← loaded once at startup
   • g:loaded_circuit guard, +terminal feature check
   • g:circuit_* config defaults (get(g:, ...) pattern)
-  • g:circuit_provider — selects the active CLI backend
+  • g:circuit_provider — must be 'opencode' (only supported backend)
   • :CTerm dispatcher + short command aliases
   • keymap registration (guarded by g:circuit_map_keys)
   • FocusGained/BufEnter autocommand for checktime
@@ -26,12 +26,12 @@ autoload/circuit.vim              ← lazy-loaded on first circuit# call
   • s: script-local state (term_bufnr, timer, mode, model)
   • s: helpers (get, git_root, build_cmd, open_split, provider, ...)
   • circuit# public functions (toggle, resume, continue, new, ...)
-  • provider-aware: reads flags from circuit#providers#current()
+  • reads flags from circuit#providers#current()
   • tab-completion via circuit#complete()
 
 autoload/circuit/providers.vim    ← provider registry
-  • s:providers dict — one dict per backend (claude, agent, gemini, opencode)
-  • circuit#providers#get(name) — returns a provider dict
+  • s:providers dict — opencode backend definition
+  • circuit#providers#get(name) — returns the provider dict
   • circuit#providers#list() — returns provider names
   • circuit#providers#current() — returns the active provider dict
 
@@ -200,16 +200,13 @@ submodule at `test/vader.vim`.
 
 - `test/vimrc` — minimal vimrc that loads only the plugin and Vader.
 - `test/providers.vader` — unit tests for `circuit#providers#*` functions.
-- `test/completion.vader` — tab-completion behavior per provider.
-- `test/features.vader` — new features (undo, redo, export, stats, sessions).
-- `test/provider_aware.vader` — unsupported-feature warnings for each provider.
+- `test/completion.vader` — tab-completion behavior.
+- `test/features.vader` — feature tests (undo, redo, export, refs, plan, etc.).
 
 ### Writing tests
 
 - Test public `circuit#` functions, not `s:` script-local functions.
-- Test both the supported and unsupported code paths for provider-dependent features.
 - Use `redir => output` / `redir END` to capture `echo` output for assertion.
-- Set `g:circuit_provider` at the start of each test and restore it at the end.
 - Naming convention: `test/{module}.vader`.
 
 ## Linting

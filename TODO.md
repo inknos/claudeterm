@@ -11,12 +11,6 @@
       split height/width independently of `g:circuit_split_ratio`
       (e.g. fixed column count or row count).
 
-- [ ] Provider-aware floating prompt options: the command prompt should
-      show different options depending on the active provider. For
-      example, Claude Code and OpenCode support different slash commands
-      and modes — the prompt should only list what the current provider
-      actually supports.
-
 - [ ] Smarter sorting in the floating prompt: sort options by relevance
       or frequency of use rather than alphabetically. Consider showing
       recently used commands first and grouping related commands.

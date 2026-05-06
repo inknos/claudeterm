@@ -22,10 +22,8 @@ let g:circuit_position         = get(g:, 'circuit_position', 'right')
 let g:circuit_split_ratio      = get(g:, 'circuit_split_ratio', 0.4)
 let g:circuit_enter_insert     = get(g:, 'circuit_enter_insert', 1)
 let g:circuit_use_git_root     = get(g:, 'circuit_use_git_root', 1)
-let g:circuit_permission_mode  = get(g:, 'circuit_permission_mode', '')
 let g:circuit_model            = get(g:, 'circuit_model', '')
 let g:circuit_extra_args       = get(g:, 'circuit_extra_args', '')
-let g:circuit_worktree_tmux    = get(g:, 'circuit_worktree_tmux', 0)
 let g:circuit_env              = get(g:, 'circuit_env', {})
 
 let g:circuit_plan_close_on_exec = get(g:, 'circuit_plan_close_on_exec', 1)
@@ -74,16 +72,11 @@ command! -nargs=0 CTresume   call circuit#resume()
 command! -nargs=0 CTcontinue call circuit#continue()
 command! -nargs=0 CTnew      call circuit#new()
 command! -nargs=0 CTkill     call circuit#kill()
-command! -nargs=0 CTpr       call circuit#from_pr()
 command! -nargs=0 CTplan      call circuit#set_mode('plan')
-command! -nargs=0 CTfast      call circuit#set_mode('fast')
-command! -nargs=0 CTnormal    call circuit#set_mode('normal')
 command! -nargs=0 CTplanopen  call circuit#plan_open()
 command! -nargs=0 CTplanexec  call circuit#plan_exec()
 command! -nargs=0 CTplanclose call circuit#plan_close()
 command! -nargs=1 CTmodel    call circuit#set_model(<f-args>)
-command! -nargs=0 CTverbose  call circuit#toggle_verbose()
-command! -nargs=0 CTdoctor   call circuit#doctor()
 command! -nargs=0 CTversion  call circuit#version()
 command! -nargs=0 -range   CTsend     call circuit#send_selection(<line1>, <line2>)
 command! -range -nargs=0 CTref        call circuit#stage_ref(<line1>, <line2>)
@@ -92,7 +85,6 @@ command! -nargs=0 -range   CTrefsend  call circuit#send_staged_ref()
 command! -nargs=0 CTrefclear call circuit#clear_staged_refs()
 command! -nargs=0 CTreflist  call circuit#list_staged_refs()
 command! -nargs=0 CTchat     call circuit#chat()
-command! -nargs=? -bang CTworktree call circuit#worktree(<q-args>, <bang>0)
 command! -nargs=0 CTundo     call circuit#undo()
 command! -nargs=0 CTredo     call circuit#redo()
 command! -nargs=0 CTexport   call circuit#export()
@@ -120,8 +112,6 @@ function! s:dispatch(...) abort
     call circuit#new()
   elseif l:cmd ==# 'kill'
     call circuit#kill()
-  elseif l:cmd ==# 'pr'
-    call circuit#from_pr()
   elseif l:cmd ==# 'send'
     call circuit#send_selection()
   elseif l:cmd ==# 'ref'
@@ -134,16 +124,10 @@ function! s:dispatch(...) abort
     call circuit#list_staged_refs()
   elseif l:cmd ==# 'chat'
     call circuit#chat()
-  elseif l:cmd ==# 'verbose'
-    call circuit#toggle_verbose()
-  elseif l:cmd ==# 'doctor'
-    call circuit#doctor()
   elseif l:cmd ==# 'version'
     call circuit#version()
   elseif l:cmd ==# 'plan'
     call circuit#set_mode('plan')
-  elseif l:cmd ==# 'fast'
-    call circuit#set_mode('fast')
   elseif l:cmd ==# 'planopen'
     call circuit#plan_open()
   elseif l:cmd ==# 'planexec'
@@ -154,7 +138,7 @@ function! s:dispatch(...) abort
     if a:0 >= 2
       call circuit#set_mode(a:2)
     else
-      echoerr 'vim-circuit: mode requires an argument (plan/fast/normal)'
+      echoerr 'vim-circuit: mode requires an argument'
     endif
   elseif l:cmd ==# 'model'
     if a:0 >= 2
@@ -162,8 +146,6 @@ function! s:dispatch(...) abort
     else
       echoerr 'vim-circuit: model requires an argument'
     endif
-  elseif l:cmd ==# 'worktree'
-    call circuit#worktree(a:0 >= 2 ? a:2 : '', 0)
   elseif l:cmd ==# 'undo'
     call circuit#undo()
   elseif l:cmd ==# 'redo'

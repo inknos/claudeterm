@@ -10,7 +10,6 @@ let s:term_winid = -1
 let s:reload_timer = -1
 let s:current_mode = ''
 let s:current_model = ''
-let s:verbose = 0
 let s:autoread_save = 0
 let s:autoread_armed = 0
 let s:staged_file_refs = []
@@ -261,7 +260,7 @@ function! s:check_supported(field, label) abort
   endif
   let l:p = s:provider()
   if empty(l:p[a:field])
-    call s:warn(a:label . ' not supported by ' . g:circuit_provider)
+    call s:warn(a:label . ' not supported')
     return {}
   endif
   return l:p
@@ -284,7 +283,7 @@ function! s:send_slash_cmd(key, hook) abort
   let l:p = s:provider()
   let l:cmd = get(l:p.slash_commands, a:key, '')
   if empty(l:cmd)
-    call s:warn(a:key . ' not supported by ' . g:circuit_provider)
+    call s:warn(a:key . ' not supported')
     return
   endif
   if s:server_running()
@@ -338,22 +337,18 @@ function! s:show_setup_guide() abort
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal nonumber norelativenumber signcolumn=no
   let l:lines = [
-        \ '  vim-circuit: no provider configured',
-        \ '  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        \ '  vim-circuit: opencode not found',
+        \ '  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
         \ '',
-        \ '  Add one of these to your .vimrc:',
+        \ '  Install opencode and make sure it is on $PATH.',
+        \ '  https://github.com/opencode-ai/opencode',
         \ '',
-        \ '    let g:circuit_provider = ''opencode''    (recommended)',
-        \ '    let g:circuit_provider = ''claude''',
-        \ '    let g:circuit_provider = ''gemini''',
-        \ '    let g:circuit_provider = ''agent''',
+        \ '  The CLI must be authenticated and functional.',
+        \ '  Run `opencode` standalone first to verify.',
         \ '',
         \ '  Then reload Vim and run :CTerm',
         \ '',
-        \ '  Each CLI must be installed and authenticated separately.',
-        \ '  vim-circuit does not manage API keys or credentials.',
-        \ '',
-        \ '  For details:  :help circuit-providers',
+        \ '  For details:  :help circuit',
         \ ]
   call setline(1, l:lines)
   setlocal nomodifiable
@@ -369,24 +364,12 @@ function! s:build_cmd(...) abort
   endif
   let l:extra = s:get('extra_args', '')
 
-  let l:mode = s:current_mode
-  if empty(l:mode)
-    let l:mode = s:get('permission_mode', '')
-  endif
-  if !empty(l:mode) && !empty(l:p.permission_flag)
-    let l:cmd .= ' ' . l:p.permission_flag . ' ' . l:mode
-  endif
-
   let l:model = s:current_model
   if empty(l:model)
     let l:model = s:get('model', '')
   endif
   if !empty(l:model) && !empty(l:p.model_flag)
     let l:cmd .= ' ' . l:p.model_flag . ' ' . l:model
-  endif
-
-  if s:verbose && !empty(l:p.verbose_flag)
-    let l:cmd .= ' ' . l:p.verbose_flag
   endif
 
   if !empty(l:extra)
@@ -521,22 +504,8 @@ function! circuit#resume() abort
     return
   endif
   let l:p = s:provider()
-  " OpenCode and similar: no --resume; use the same command as |circuit#sessions()|
-  " (e.g. `opencode session list`) so :CTresume shows sessions instead of
-  " an invalid `opencode --session` with no id.
-  if empty(l:p.resume) && !empty(l:p.session_list_cmd)
-    call s:kill_term_if_alive()
-    let l:cmd = s:resolve_bin() . ' ' . l:p.session_list_cmd
-    call s:open_with_cmd(l:cmd)
-    call circuit#hooks#fire('SessionChange')
-    return
-  endif
-  if empty(l:p.resume)
-    call s:warn('resume not supported by ' . g:circuit_provider)
-    return
-  endif
   call s:kill_term_if_alive()
-  let l:cmd = s:build_cmd(l:p.resume)
+  let l:cmd = s:resolve_bin() . ' ' . l:p.session_list_cmd
   call s:open_with_cmd(l:cmd)
   call circuit#hooks#fire('SessionChange')
 endfunction
@@ -553,14 +522,6 @@ function! circuit#new() abort
     return
   endif
   call s:restart_session('', 'SessionChange')
-endfunction
-
-function! circuit#from_pr() abort
-  let l:p = s:check_supported('from_pr_flag', 'from-pr')
-  if empty(l:p)
-    return
-  endif
-  call s:restart_session(l:p.from_pr_flag, 'SessionChange')
 endfunction
 
 function! circuit#kill() abort
@@ -600,7 +561,7 @@ function! s:close_circuit_buffer_window() abort
   endif
 endfunction
 
-" After the agent CLI (e.g. opencode) exits, close the split, wipe the buffer,
+" After the opencode process exits, close the split, wipe the buffer,
 " and fire |CTTermExited| — distinct from CTKill (|circuit#kill()|).
 function! s:cleanup_after_circuit_job_exit() abort
   call s:stop_reload_timer()
@@ -837,44 +798,6 @@ function! circuit#set_model(model) abort
 endfunction
 
 " ---------------------------------------------------------------------------
-" Worktree
-" ---------------------------------------------------------------------------
-
-function! circuit#worktree(name, bang) abort
-  let l:p = s:check_supported('worktree_flag', 'worktree')
-  if empty(l:p)
-    return
-  endif
-
-  call s:kill_term_if_alive()
-
-  let l:cmd = s:resolve_bin() . ' ' . l:p.worktree_flag
-  if !empty(a:name)
-    let l:cmd .= ' ' . a:name
-  endif
-  let l:use_tmux = a:bang || s:get('worktree_tmux', 0)
-  if l:use_tmux && !empty(l:p.tmux_flag)
-    let l:cmd .= ' ' . l:p.tmux_flag
-  endif
-
-  call s:open_with_cmd(l:cmd, 'Worktree')
-endfunction
-
-" ---------------------------------------------------------------------------
-" Verbose toggle
-" ---------------------------------------------------------------------------
-
-function! circuit#toggle_verbose() abort
-  let l:p = s:check_supported('verbose_flag', 'verbose')
-  if empty(l:p)
-    return
-  endif
-  let s:verbose = !s:verbose
-  call s:restart_session(l:p.continue, '')
-  call s:msg('verbose ' . (s:verbose ? 'ON' : 'OFF'))
-endfunction
-
-" ---------------------------------------------------------------------------
 " Send selection
 " ---------------------------------------------------------------------------
 
@@ -1019,12 +942,8 @@ function! circuit#set_position(pos) abort
 endfunction
 
 " ---------------------------------------------------------------------------
-" Doctor / Version
+" Version
 " ---------------------------------------------------------------------------
-
-function! circuit#doctor() abort
-  call s:run_cli_cmd('doctor_cmd', 'health check')
-endfunction
 
 function! circuit#version() abort
   if s:needs_provider()
@@ -1033,7 +952,6 @@ function! circuit#version() abort
   let l:p = s:provider()
   let l:cli_ver = trim(system(s:resolve_bin() . ' ' . l:p.version_flag . ' 2>&1'))
   echo 'vim-circuit:  0.1.0'
-  echo 'provider:     ' . g:circuit_provider
   echo 'cli version:  ' . l:cli_ver
   echo 'vim:          ' . v:version
   echo 'terminal:     ' . (has('terminal') ? '+terminal' : '-terminal')
@@ -1323,10 +1241,10 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
   let l:nparts = len(l:parts)
 
   if l:nparts <= 2
-    let l:subs = ['resume', 'continue', 'new', 'kill', 'pr', 'worktree',
-          \ 'plan', 'fast', 'mode', 'position', 'send', 'chat',
-          \ 'ref', 'refsend', 'refclear', 'reflist', 'model', 'verbose',
-          \ 'doctor', 'version', 'undo', 'redo', 'export', 'stats',
+    let l:subs = ['resume', 'continue', 'new', 'kill',
+          \ 'plan', 'mode', 'position', 'send', 'chat',
+          \ 'ref', 'refsend', 'refclear', 'reflist', 'model',
+          \ 'version', 'undo', 'redo', 'export', 'stats',
           \ 'sessions', 'planopen', 'planexec', 'planclose',
           \ 'prompt', 'ping', 'serve', 'pick', 'models']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')

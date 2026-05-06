@@ -1,4 +1,4 @@
-*circuit.txt*  Agent CLI terminal integration for Vim
+*circuit.txt*  OpenCode terminal integration for Vim
 
 Author:  inknos
 License: GPL-3.0
@@ -8,113 +8,64 @@ Version: 0.2.0
 CONTENTS                                              *circuit-contents*
 
   1. Introduction ......................... |circuit-introduction|
-  2. Providers ............................ |circuit-providers|
-  3. Requirements ......................... |circuit-requirements|
-  4. Installation ......................... |circuit-installation|
-  5. Quick Start .......................... |circuit-quickstart|
-  6. Commands ............................. |circuit-commands|
-     6.1 Session Management ............... |circuit-session|
-     6.2 Mode Control .................... |circuit-modes|
-     6.3 Window Control .................. |circuit-window|
-     6.4 Code Context .................... |circuit-context|
-     6.5 Worktree ....................... |circuit-worktree|
-     6.6 Model & Config .................. |circuit-model|
-     6.7 Undo / Redo .................... |circuit-undo|
-     6.8 Export .......................... |circuit-export|
-     6.9 Stats .......................... |circuit-stats|
-     6.10 Session List ................... |circuit-sessions|
-     6.11 Plan Workflow .................. |circuit-plan-workflow|
-     6.12 Command Prompt ................. |circuit-prompt|
-     6.13 Server ......................... |circuit-server|
-     6.14 Utility ........................ |circuit-utility|
-  7. Keymaps .............................. |circuit-keymaps|
-     7.1 Normal Mode ..................... |circuit-keymaps-normal|
-     7.2 Visual Mode ..................... |circuit-keymaps-visual|
-     7.3 Terminal Mode ................... |circuit-keymaps-terminal|
-  8. Tab-Completion ....................... |circuit-completion|
-  9. Hooks ................................ |circuit-hooks|
- 10. Configuration ........................ |circuit-configuration|
-     10.1 Core ........................... |circuit-config-core|
-     10.2 Auto-Reload ................... |circuit-config-reload|
-     10.3 Keymaps ....................... |circuit-config-keymaps|
-     10.4 Display ....................... |circuit-config-display|
-     10.5 Session Control .............. |circuit-config-session-control|
- 11. Troubleshooting ...................... |circuit-troubleshooting|
+  2. Requirements ......................... |circuit-requirements|
+  3. Installation ......................... |circuit-installation|
+  4. Quick Start .......................... |circuit-quickstart|
+  5. Commands ............................. |circuit-commands|
+     5.1 Session Management ............... |circuit-session|
+     5.2 Mode Control .................... |circuit-modes|
+     5.3 Window Control .................. |circuit-window|
+     5.4 Code Context .................... |circuit-context|
+     5.5 Model ........................... |circuit-model|
+     5.6 Undo / Redo .................... |circuit-undo|
+     5.7 Export .......................... |circuit-export|
+     5.8 Stats .......................... |circuit-stats|
+     5.9 Session List ................... |circuit-sessions|
+     5.10 Plan Workflow .................. |circuit-plan-workflow|
+     5.11 Command Prompt ................. |circuit-prompt|
+     5.12 Server ......................... |circuit-server|
+     5.13 Utility ........................ |circuit-utility|
+  6. Keymaps .............................. |circuit-keymaps|
+     6.1 Normal Mode ..................... |circuit-keymaps-normal|
+     6.2 Visual Mode ..................... |circuit-keymaps-visual|
+     6.3 Terminal Mode ................... |circuit-keymaps-terminal|
+  7. Tab-Completion ....................... |circuit-completion|
+  8. Hooks ................................ |circuit-hooks|
+  9. Configuration ........................ |circuit-configuration|
+     9.1 Core ........................... |circuit-config-core|
+     9.2 Auto-Reload ................... |circuit-config-reload|
+     9.3 Keymaps ....................... |circuit-config-keymaps|
+     9.4 Display ....................... |circuit-config-display|
+     9.5 Session Control .............. |circuit-config-session-control|
+ 10. Troubleshooting ...................... |circuit-troubleshooting|
 
 ==============================================================================
 1. Introduction                                   *circuit-introduction*
 
-vim-circuit brings any agent CLI directly into Vim using the built-in
-|:terminal| feature. It manages a persistent terminal session tied to
-your current project and git branch, and provides commands for session
-switching, permission mode control, model selection, and more.
+vim-circuit embeds OpenCode (https://github.com/opencode-ai/opencode)
+in Vim using the built-in |:terminal| feature. It manages a persistent
+terminal session tied to your current project and provides commands for
+session management, model selection, plan workflow, and more.
 
 Key design principles:
 
-  - Single persistent terminal per project/branch (no spawning duplicates)
+  - Single persistent terminal per project (no spawning duplicates)
   - Toggle show/hide without losing session state
-  - Multi-provider: works with Claude, Cursor Agent, Gemini, OpenCode
   - Every command reachable three ways: long form, short alias, keymap
   - Every keymap and behavior configurable via |g:circuit_*| variables
   - Lifecycle hooks via |User| autocommands for extensibility
+  - Server API integration for reliable prompt delivery
 
 ==============================================================================
-2. Providers                                       *circuit-providers*
-
-vim-circuit supports multiple agent CLI backends. Set
-|g:circuit_provider| in your |vimrc| to choose which one to use.
-
-                                                *g:circuit_provider*
-g:circuit_provider      String (default: `'opencode'`)
-                        The active provider. Valid values:
-                        `'opencode'`, `'claude'`, `'agent'`, `'gemini'`.
-
-Available providers:
-
-  Provider          Binary      Project ~
-  Claude Code       `claude`    Anthropic Claude Code CLI
-  Cursor Agent      `agent`     Cursor Agent CLI
-  Gemini CLI        `gemini`    Google Gemini CLI
-  OpenCode          `opencode`  OpenCode (recommended)
-
-vim-circuit does not handle authentication or API keys. Each CLI must
-already be installed, authenticated, and working on its own before you
-use it through this plugin.
-
-Feature matrix:                            *circuit-provider-features*
-
-  Feature                 Claude  Agent  Gemini  OpenCode ~
-  Continue session          ✓       ✓      ✓       ✓
-  Resume (picker)           ✓       ✓      ✓       ✓
-  Model switching           ✓       ✓      ✓       ✓
-  Permission/approval       ✓       ✓      ✓       —
-  Verbose/debug             ✓       —      ✓       —
-  Worktree                  ✓       ✓      ✓       —
-  From PR                   ✓       —      —       —
-  Interactive modes         ✓       ✓      —       ✓
-  Plan workflow             ✓       —      —       ✓
-  Health check              ✓       ✓      —       —
-  Undo/redo                 —       —      —       ✓
-  Export                    —       —      —       ✓
-  Stats                     —       —      —       ✓
-  Session list              —       ✓      ✓       ✓
-  Provider env vars         —       —      —       ✓
-  Server API                —       —      —       ✓
-  TUI pickers               —       —      —       ✓
-
-When you use a feature not supported by your provider, the plugin
-prints a warning instead of failing silently.
-
-==============================================================================
-3. Requirements                                   *circuit-requirements*
+2. Requirements                                   *circuit-requirements*
 
   - Vim 8.0+ compiled with |+terminal|
-  - A supported agent CLI installed and in $PATH (see |circuit-providers|)
+  - OpenCode (`opencode`) installed and in $PATH
   - The CLI must be authenticated and functional on its own
   - Git
 
 ==============================================================================
-4. Installation                                   *circuit-installation*
+3. Installation                                   *circuit-installation*
 
 vim-plug: >
   Plug 'inknos/vim-circuit'
@@ -128,14 +79,9 @@ After installing, run: >
 <
 
 ==============================================================================
-5. Quick Start                                     *circuit-quickstart*
+4. Quick Start                                     *circuit-quickstart*
 
-The default provider is OpenCode. To use a different   *:CTerm* *:CT*
-provider, add to your vimrc:
->
-  let g:circuit_provider = 'claude'
-<
-Open an agent terminal (uses opencode by default):
+Open an OpenCode terminal:                         *:CTerm* *:CT*
 >
   :CTerm
   " or press <leader>c
@@ -150,7 +96,7 @@ Switch model:                                      *:CTerm-model*
 >
   :CTerm model {name}
 <
-Send interactive mode command (provider-dependent): *:CTerm-mode*
+Enter plan mode:                                   *:CTerm-mode*
 >
   :CTerm mode plan
 <
@@ -158,29 +104,24 @@ Use |<leader>[| to open the command prompt for quick access to all
 commands.
 
 ==============================================================================
-6. Commands                                         *circuit-commands*
+5. Commands                                         *circuit-commands*
 
 All commands support the dispatcher form `:CTerm {subcommand}` and short
 aliases. Tab-completion is available for all subcommands and their
-arguments. Features unsupported by the active provider print a warning.
+arguments.
 
 ------------------------------------------------------------------------------
-6.1 Session Management                                *circuit-session*
+5.1 Session Management                                *circuit-session*
 
                                                       *:CTerm-toggle*
-:CTerm                  Toggle the agent terminal. Resumes the most recent
-:CT                     session (`--continue` or equivalent), or starts a
-                        new one if none exists. Shows/hides if a session
-                        is already running.
+:CTerm                  Toggle the OpenCode terminal. Resumes the most
+:CT                     recent session (`--continue`), or starts a new one
+                        if none exists. Shows/hides if a session is already
+                        running.
 
                                                       *:CTresume*
-:CTerm resume           Open the interactive session picker. Kills the
-:CTresume               current terminal first if one is running.
-                        For OpenCode, the CLI has no session picker; this
-                        runs the same as |:CTsessions| (`opencode session
-                        list` in a terminal) so you can read session ids,
-                        then start with |:CTerm| and `--session` if needed
-                        (see `opencode --help`).
+:CTerm resume           Open the session list (`opencode session list`).
+:CTresume               Kills the current terminal first if one is running.
 
                                                       *:CTcontinue*
 :CTerm continue         Resume the most recent conversation in the current
@@ -194,42 +135,31 @@ arguments. Features unsupported by the active provider print a warning.
 :CTerm kill             Kill the terminal buffer entirely.
 :CTkill
 
-                                                      *:CTpr*
-:CTerm pr               Resume a session linked to a PR. Claude only;
-:CTpr                   other providers print a warning.
-
 ------------------------------------------------------------------------------
-6.2 Mode Control                                       *circuit-modes*
+5.2 Mode Control                                       *circuit-modes*
 
-The agent CLI may support interactive modes. These commands send the
-corresponding slash command to the running session -- no restart needed.
-If no session is running, one is opened first. Providers without mode
-support print a warning.
+Send slash commands to switch interactive modes in the running session.
+If no session is running, one is opened first.
 
                                                       *:CTplan*
-:CTerm plan             Toggle plan mode (sends `/{mode_prefix}plan`).
+:CTerm plan             Enter plan mode (sends `/plan`).
 :CTplan
 
-                                                      *:CTfast*
-:CTerm fast             Toggle fast mode (sends `/{mode_prefix}fast`).
-:CTfast
-
-:CTerm mode {mode}      Send the provider's mode prefix + {mode} to the
-                        running session. Available modes depend on the
-                        active provider (tab-completable).
+:CTerm mode {mode}      Send `/{mode}` to the running session
+                        (tab-completable).
 
 ------------------------------------------------------------------------------
-6.3 Window Control                                    *circuit-window*
+5.3 Window Control                                    *circuit-window*
 
                                                       *:CTerm-position*
 :CTerm position {pos}   Move the terminal to a different split position.
                         {pos} is one of: `right`, `left`, `top`, `bottom`.
 
 ------------------------------------------------------------------------------
-6.4 Code Context                                     *circuit-context*
+5.4 Code Context                                     *circuit-context*
 
                                                       *:CTsend*
-:CTerm send             Send the current visual selection to the agent
+:CTerm send             Send the current visual selection to the OpenCode
 :CTsend                 terminal. The text is prefixed with the filename.
 :[range]CTsend           As |:CTsend| with a line range: sends those lines.
                         (Accepts a range so you can use `:'<,'>CTsend` after
@@ -280,73 +210,51 @@ support print a warning.
 :CTreflist
 
 ------------------------------------------------------------------------------
-6.5 Worktree                                         *circuit-worktree*
-
-                                                      *:CTworktree*
-:CTworktree [name]      Launch the agent in a git worktree. Providers
-:CTerm worktree [name]  without worktree support print a warning.
-
-:CTworktree! [name]     With a bang, adds the tmux flag (if the provider
-                        supports it). Also triggered when
-                        |g:circuit_worktree_tmux| is `1`.
-
-------------------------------------------------------------------------------
-6.6 Model & Config                                    *circuit-model*
+5.5 Model                                             *circuit-model*
 
                                                       *:CTmodel*
 :CTerm model {name}     Kill the current session and restart with the given
-:CTmodel {name}         model. Available model aliases depend on the active
-                        provider (tab-completable). Full model names are
-                        always accepted.
-
-                                                      *:CTverbose*
-:CTerm verbose          Toggle verbose/debug mode. Providers without
-:CTverbose              verbose support print a warning.
+:CTmodel {name}         model. Full model names are accepted.
 
 ------------------------------------------------------------------------------
-6.7 Undo / Redo                                        *circuit-undo*
+5.6 Undo / Redo                                        *circuit-undo*
 
                                                       *:CTundo*
-:CTerm undo             Send the provider's undo slash command to the
-:CTundo                 running terminal. Currently only OpenCode supports
-                        this feature. Other providers print a warning.
+:CTerm undo             Send `/undo` to the running terminal.
+:CTundo
 
                                                       *:CTredo*
-:CTerm redo             Send the provider's redo slash command to the
-:CTredo                 running terminal.
+:CTerm redo             Send `/redo` to the running terminal.
+:CTredo
 
 ------------------------------------------------------------------------------
-6.8 Export                                            *circuit-export*
+5.7 Export                                            *circuit-export*
 
                                                       *:CTexport*
-:CTerm export           Send the provider's export slash command to the
-:CTexport               running terminal. Currently only OpenCode supports
-                        this feature.
+:CTerm export           Send `/export` to the running terminal.
+:CTexport
 
 ------------------------------------------------------------------------------
-6.9 Stats                                              *circuit-stats*
+5.8 Stats                                              *circuit-stats*
 
                                                       *:CTstats*
-:CTerm stats            Run the provider's stats CLI subcommand and display
-:CTstats                the output. Currently only OpenCode supports this
-                        feature.
+:CTerm stats            Run `opencode stats` and display the output.
+:CTstats
 
 ------------------------------------------------------------------------------
-6.10 Session List                                   *circuit-sessions*
+5.9 Session List                                   *circuit-sessions*
 
                                                       *:CTsessions*
-:CTerm sessions         Open the provider's session list interface. For
-:CTsessions             providers without a session list command, falls
-                        back to |:CTresume|.
+:CTerm sessions         Open the session list (`opencode session list`
+:CTsessions             in a terminal).
 
 ------------------------------------------------------------------------------
-6.11 Plan Workflow                              *circuit-plan-workflow*
+5.10 Plan Workflow                              *circuit-plan-workflow*
 
 The plan workflow lets you review and edit the agent's plan in a
-normal Vim buffer before executing it. The agent writes the plan to
-disk (e.g. Claude Code writes to `~/.claude/plans/`, OpenCode to
-`<project>/.opencode/plans/`); vim-circuit opens it in the current
-window for editing.
+normal Vim buffer before executing it. OpenCode writes plans to
+`<project>/.opencode/plans/`; vim-circuit opens the most recent one
+in the current window for editing.
 
 Typical session: >
   :CTplan                " CLI enters plan mode
@@ -357,22 +265,16 @@ Typical session: >
   :CTplanexec            " send plan for execution
 <
 
-Providers without a `plan_dir` (Gemini, Cursor Agent) open an empty
-scratch buffer as a fallback.
-
                                                       *:CTplanopen*
-:CTerm planopen         Open the most recent plan file from the provider's
-:CTplanopen             plan directory in the current window. Sets
+:CTerm planopen         Open the most recent plan file from
+:CTplanopen             `.opencode/plans/` in the current window. Sets
                         |'autoread'| on the buffer. If already open
-                        in a window, focuses it. Providers without a
-                        plan directory open an empty scratch buffer.
+                        in a window, focuses it.
 
                                                       *:CTplanexec*
 :CTerm planexec         Read the plan buffer and send its contents to the
-:CTplanexec             agent terminal as a prompt. If the CLI is in plan
-                        mode and the provider has an `exit_plan_cmd`, sends
-                        the exit command first (e.g. `/normal` for Claude).
-                        Closes the plan buffer afterward unless
+:CTplanexec             OpenCode terminal as a prompt. Closes the plan
+                        buffer afterward unless
                         |g:circuit_plan_close_on_exec| is `0`.
 
                                                       *:CTplanclose*
@@ -381,7 +283,7 @@ scratch buffer as a fallback.
                         reopen with |:CTplanopen|.
 
 ------------------------------------------------------------------------------
-6.12 Command Prompt                                  *circuit-prompt*
+5.11 Command Prompt                                  *circuit-prompt*
 
                                                       *:CTprompt*
 :CTerm prompt           Open a floating command palette. Type to filter
@@ -390,16 +292,16 @@ scratch buffer as a fallback.
 
                         Subcommands that require an argument (`mode`,
                         `model`, `position`) chain a second popup with
-                        provider-aware completions.
+                        context-aware completions.
 
                         Requires Vim with |+popupwin| (8.2+). Falls back
                         to |input()| with tab-completion when popups are
                         not available.
 
 ------------------------------------------------------------------------------
-6.13 Server                                            *circuit-server*
+5.12 Server                                            *circuit-server*
 
-When |g:circuit_provider| is `opencode`, the plugin automatically manages
+The plugin automatically manages
 a background `opencode serve` process per Vim instance. The server is
 started lazily on the first command that needs it (or at VimEnter when
 |g:circuit_server_mode| is `'start'`) and killed on VimLeave.
@@ -429,34 +331,28 @@ use the server HTTP API instead of typing into the terminal.
                         terminal to be open.
 
 ------------------------------------------------------------------------------
-6.14 Utility                                          *circuit-utility*
-
-                                                      *:CTdoctor*
-:CTerm doctor           Run the provider's health check command and
-:CTdoctor               display the output. Currently supported by
-                        Claude (`claude doctor`) and Cursor Agent
-                        (`agent about`).
+5.13 Utility                                          *circuit-utility*
 
                                                       *:CTversion*
-:CTerm version          Print the provider CLI's version string.
+:CTerm version          Print the OpenCode CLI version string.
 :CTversion
 
 ==============================================================================
-7. Keymaps                                           *circuit-keymaps*
+6. Keymaps                                           *circuit-keymaps*
 
 All keymaps are registered only if |g:circuit_map_keys| is 1 (default).
 All other commands are accessible via the command prompt (|:CTprompt|)
 or ex commands (|:CTerm|).
 
 ------------------------------------------------------------------------------
-7.1 Normal Mode                                *circuit-keymaps-normal*
+6.1 Normal Mode                                *circuit-keymaps-normal*
 
   Key              Command         Variable ~
   <leader>c        Toggle          |g:circuit_map_toggle|
   <leader>[        Command prompt  |g:circuit_map_prompt|
 
 ------------------------------------------------------------------------------
-7.2 Visual Mode                              *circuit-keymaps-visual*
+6.2 Visual Mode                              *circuit-keymaps-visual*
 
   Key              Action ~
   <C-l>            Stage the selected lines as a ref, send to the agent
@@ -464,7 +360,7 @@ or ex commands (|:CTerm|).
                    in one step. See |g:circuit_vmap_c_l_sends_ref|.
 
 ------------------------------------------------------------------------------
-7.3 Terminal Mode                            *circuit-keymaps-terminal*
+6.3 Terminal Mode                            *circuit-keymaps-terminal*
 
 These keymaps are active when the cursor is inside any terminal buffer.
 
@@ -480,43 +376,36 @@ These keymaps are active when the cursor is inside any terminal buffer.
 
   |<C-h>| is not mapped to window-left by default: in many terminals it is
   the same as Ctrl+Backspace (^H), so mapping it would steal
-  word-delete in embedded TUIs (e.g. OpenCode). To restore the old
+  word-delete in the OpenCode TUI. To restore the old
   |<C-h>| behavior, set |g:circuit_tmap_ch_left| to `1`.
 
 ==============================================================================
-8. Tab-Completion                                  *circuit-completion*
+7. Tab-Completion                                  *circuit-completion*
 
 `:CTerm` supports context-aware tab-completion:
 
   :CTerm <Tab>           Completes subcommands: `resume`, `continue`,
-                         `new`, `kill`, `pr`, `worktree`, `plan`,
-                         `fast`, `mode`, `position`, `send`,
-                         `chat`, `ref`, `refsend`, `refclear`,
-                         `reflist`, `model`, `verbose`, `doctor`,
-                         `version`, `undo`, `redo`, `export`, `stats`,
-                         `sessions`, `planopen`, `planexec`,
-                         `planclose`, `prompt`, `ping`, `serve`,
-                         `pick`, `models`.
+                         `new`, `kill`, `plan`, `mode`, `position`,
+                         `send`, `chat`, `ref`, `refsend`, `refclear`,
+                         `reflist`, `model`, `version`, `undo`, `redo`,
+                         `export`, `stats`, `sessions`, `planopen`,
+                         `planexec`, `planclose`, `prompt`, `ping`,
+                         `serve`, `pick`, `models`.
 
-  :CTerm mode <Tab>      Completes from the active provider's mode list.
-                         E.g. `plan`, `fast`, `normal` for Claude;
-                         `plan`, `ask` for Cursor Agent; empty for
-                         OpenCode and Gemini.
+  :CTerm mode <Tab>      Completes available modes: `plan`.
 
-  :CTerm model <Tab>     Completes from the active provider's model list.
-                         E.g. `sonnet`, `opus`, `haiku` for Claude;
-                         `pro`, `flash`, `flash-lite` for Gemini;
-                         empty for OpenCode.
+  :CTerm model <Tab>     Completes model names (empty by default; full
+                         model names are always accepted).
 
   :CTerm position <Tab>  Completes: `right`, `left`, `top`, `bottom`.
 
 ==============================================================================
-9. Hooks                                               *circuit-hooks*
+8. Hooks                                               *circuit-hooks*
 
 The plugin fires |User| autocommands with a `CT` prefix at various
 lifecycle points. Hook into them in your |vimrc|:
 >
-  autocmd User CTOpen echo "Agent session started"
+  autocmd User CTOpen echo "OpenCode session started"
   autocmd User CTReload echohl WarningMsg
         \ | echo "Buffers reloaded" | echohl None
 <
@@ -528,11 +417,10 @@ Available events:
   CTToggleShow            Terminal shown (unhidden)
   CTToggleHide            Terminal hidden
   CTKill                  Terminal killed
-  CTTermExited            Agent process exited (split closed, buffer wiped)
+  CTTermExited            OpenCode process exited (split closed, buffer wiped)
   CTReload                One or more buffers auto-reloaded
   CTModeChange            Interactive mode changed
-  CTSessionChange         Session switched (resume/continue/new/pr)
-  CTWorktree              Worktree session launched
+  CTSessionChange         Session switched (resume/continue/new)
   CTUndo                  Undo slash command sent
   CTRedo                  Redo slash command sent
   CTExport                Export slash command sent
@@ -546,7 +434,7 @@ Available events:
   CTPlanClose             Plan buffer closed (|:CTplanclose|)
 
 ==============================================================================
-10. Configuration                              *circuit-configuration*
+9. Configuration                              *circuit-configuration*
 
 All variables use the `g:circuit_` prefix. Buffer-local `b:circuit_*`
 overrides take precedence over global values.
@@ -555,20 +443,17 @@ Set variables in your |vimrc| before the plugin loads, or at any time
 (most take effect on the next command invocation).
 
 ------------------------------------------------------------------------------
-10.1 Core                                       *circuit-config-core*
+9.1 Core                                       *circuit-config-core*
 
                                                 *g:circuit_provider*
 g:circuit_provider          String (default: `'opencode'`)
-                            The active provider backend. See
-                            |circuit-providers| for valid values and the
-                            feature matrix.
+                            The active backend. Currently only `'opencode'`
+                            is supported. Set to `''` to disable.
 
                                                 *g:circuit_command*
 g:circuit_command           String (default: `''`)
                             Override the CLI binary name or path. When
-                            empty (default), the provider's default binary
-                            is used (e.g. `claude` for the claude provider,
-                            `opencode` for the opencode provider).
+                            empty (default), `opencode` is used.
 
                                                 *g:circuit_position*
 g:circuit_position          String (default: `'right'`)
@@ -582,36 +467,21 @@ g:circuit_split_ratio       Float (default: `0.4`)
                                                 *g:circuit_enter_insert*
 g:circuit_enter_insert      Number (default: `1`)
                             Auto-enter terminal (insert) mode when the
-                            agent window gains focus.
+                            terminal window gains focus.
 
                                                 *g:circuit_use_git_root*
 g:circuit_use_git_root      Number (default: `1`)
-                            Start the agent at the git repository root.
-
-                                                *g:circuit_permission_mode*
-g:circuit_permission_mode   String (default: `''`)
-                            Default permission/approval mode passed at CLI
-                            startup. The actual flag used depends on the
-                            provider (e.g. `--permission-mode` for Claude,
-                            `--mode` for Cursor Agent, `--approval-mode`
-                            for Gemini). Empty means CLI default.
+                            Start OpenCode at the git repository root.
 
                                                 *g:circuit_model*
 g:circuit_model             String (default: `''`)
                             Default model override. Empty means CLI
-                            default. Can be a provider-specific alias or
-                            a full model name.
+                            default. Full model names are accepted.
 
                                                 *g:circuit_extra_args*
 g:circuit_extra_args        String (default: `''`)
-                            Extra CLI arguments appended to every agent
+                            Extra CLI arguments appended to every OpenCode
                             invocation.
-
-                                                *g:circuit_worktree_tmux*
-g:circuit_worktree_tmux     Number (default: `0`)
-                            When `1`, `:CTworktree` always passes the
-                            provider's tmux flag. Can also be toggled
-                            per-call with `:CTworktree!`.
 
                                                 *g:circuit_server_mode*
 g:circuit_server_mode      String (default: `'lazy'`)
@@ -622,9 +492,7 @@ g:circuit_server_mode      String (default: `'lazy'`)
                             `'start'`  — start at |VimEnter|.
                             `'manual'` — never auto-start; use |:CTserve|
                                          or |:CTping| to start manually.
-                            Only applies when |g:circuit_provider| is
-                            `'opencode'`. The server is always stopped
-                            on |VimLeave|.
+                            The server is always stopped on |VimLeave|.
 
                                                 *g:circuit_plan_close_on_exec*
 g:circuit_plan_close_on_exec
@@ -636,13 +504,11 @@ g:circuit_plan_close_on_exec
                                                 *g:circuit_env*
 g:circuit_env               Dictionary (default: `{}`)
                             Extra environment variables passed to the
-                            agent terminal via |term_start()|. Merged
-                            with the provider's built-in `env` dict;
-                            user values take precedence.
-
-                            The OpenCode provider sets
-                            `OPENCODE_EXPERIMENTAL_PLAN_MODE=1` by
-                            default. Override or extend: >
+                            OpenCode terminal via |term_start()|. Merged
+                            with the built-in env dict (which sets
+                            `OPENCODE_EXPERIMENTAL_PLAN_MODE=1`);
+                            user values take precedence. Override or
+                            extend: >
   let g:circuit_env = {'MY_VAR': 'value'}
 <
                             Requires Vim patch 8.0.902+. On older Vim
@@ -650,7 +516,7 @@ g:circuit_env               Dictionary (default: `{}`)
                             (a one-time warning is printed).
 
 ------------------------------------------------------------------------------
-10.2 Auto-Reload                               *circuit-config-reload*
+9.2 Auto-Reload                               *circuit-config-reload*
 
                                                 *g:circuit_auto_reload*
 g:circuit_auto_reload       Number (default: `1`)
@@ -669,11 +535,11 @@ g:circuit_autoread_during_session
                             Off by default: does not touch |'autoread'|,
                             so your |vimrc| and global |'autoread'| are
                             respected. When `1`, set the global |'autoread'|
-                            the first time a circuit agent terminal is
+                            the first time an OpenCode terminal is
                             started in this Vim (|:CT| / |:CTerm|,
-                            |:CTnew|, |:CTworktree|, etc.), and restore
+                            |:CTnew|, etc.), and restore
                             the previous |'autoread'| value when that
-                            session ends (|:CTkill|, the agent process
+                            session ends (|:CTkill|, the OpenCode process
                             exits, or you replace the terminal, e.g.
                             |:CTnew|, |:CTcontinue|). Use when
                             |'autoread'| is off in your |vimrc| but you
@@ -703,7 +569,7 @@ g:circuit_checktime_on_bufenter
                             TUI) is open in a split.
 
 ------------------------------------------------------------------------------
-10.3 Keymaps                                  *circuit-config-keymaps*
+9.3 Keymaps                                  *circuit-config-keymaps*
 
                                                 *g:circuit_map_keys*
 g:circuit_map_keys          Number (default: `1`)
@@ -742,8 +608,8 @@ g:circuit_tmap_c_l_sends_staged
                             |:CTref|) if one is
                             pending; otherwise it runs |<C-w>|l. Set to `0`
                             to always use |<C-w>|l and add references only
-                            with |:CTrefsend| (e.g. if the agent TUI needs
-                            raw |<C-l>|).
+                            with |:CTrefsend| (e.g. if the OpenCode TUI
+                            needs raw |<C-l>|).
 
                                                 *g:circuit_vmap_c_l_sends_ref*
 g:circuit_vmap_c_l_sends_ref
@@ -755,7 +621,7 @@ g:circuit_vmap_c_l_sends_ref
                             to disable.
 
 ------------------------------------------------------------------------------
-10.4 Display                                  *circuit-config-display*
+9.4 Display                                  *circuit-config-display*
 
                                                 *g:circuit_hide_numbers*
 g:circuit_hide_numbers      Number (default: `1`)
@@ -766,7 +632,7 @@ g:circuit_hide_signcolumn   Number (default: `1`)
                             Hide the sign column in the terminal window.
 
 ------------------------------------------------------------------------------
-10.5 Session Control                      *circuit-config-session-control*
+9.5 Session Control                      *circuit-config-session-control*
 
 These variables control whether commands auto-start a terminal session
 and whether they reveal a hidden terminal split.
@@ -834,14 +700,12 @@ g:circuit_show_on_chat      Number (default: unset, falls back to
                                           *g:circuit_start_on_mode*
 g:circuit_start_on_mode     Number (default: unset, falls back to
                             |g:circuit_start_on|)
-                            Override auto-start for |:CTplan|, |:CTfast|,
-                            and |:CTnormal|.
+                            Override auto-start for |:CTplan|.
 
                                           *g:circuit_show_on_mode*
 g:circuit_show_on_mode      Number (default: unset, falls back to
                             |g:circuit_show_on|)
-                            Override reveal-on-send for |:CTplan|,
-                            |:CTfast|, and |:CTnormal|.
+                            Override reveal-on-send for |:CTplan|.
 
                                                 *g:circuit_sendkeys_delay*
 g:circuit_sendkeys_delay    Number (default: `200`)
@@ -865,7 +729,7 @@ Summary table: ~
   |:CTrefsend|       g:circuit_start_on_refsend   g:circuit_show_on_refsend
   |:CTsend|          g:circuit_start_on_send       g:circuit_show_on_send
   |:CTchat|          g:circuit_start_on_chat       g:circuit_show_on_chat
-  |:CTplan|/|:CTfast|  g:circuit_start_on_mode       g:circuit_show_on_mode
+  |:CTplan|          g:circuit_start_on_mode       g:circuit_show_on_mode
 
   Global defaults: |g:circuit_start_on| (1)    |g:circuit_show_on| (1)
 
@@ -896,21 +760,15 @@ Example configurations: >
 <
 
 ==============================================================================
-11. Troubleshooting                          *circuit-troubleshooting*
+10. Troubleshooting                          *circuit-troubleshooting*
 
 Terminal does not open~
   Verify `vim --version | grep +terminal`. This plugin requires Vim
   compiled with +terminal.
 
-Agent CLI not found~
-  Ensure the agent CLI is in `$PATH`. Check that |g:circuit_provider|
-  matches the CLI you have installed. Run `:CTdoctor` for a health
-  check (if supported by your provider).
-
-Unsupported feature warning~
-  Not all features work with all providers. See |circuit-providers|
-  for the feature matrix. The plugin warns instead of erroring when
-  you use an unsupported feature.
+OpenCode not found~
+  Ensure `opencode` is in `$PATH` and working. Run `opencode --version`
+  in a shell to verify.
 
 Buffers not reloading~
   Check that `g:circuit_auto_reload` is `1` and that |'autoread'| is
@@ -922,8 +780,8 @@ Buffers not reloading~
   anyway, the terminal buffer may belong to a different plugin. Use
   `:qa!` to force quit.
 
-Empty window after the agent exits~
-  When the agent CLI (e.g. opencode) exits, the split should close
+Empty window after OpenCode exits~
+  When the OpenCode process exits, the split should close
   automatically (|TermClose| or the circuit timer). If a stale buffer
   remains, run |:CTkill| or `:bwipe` that buffer.
 
@@ -938,7 +796,7 @@ OpenCode prints JSON (`sessionID`, `invalid_format`, `ses`, etc.)~
   project issues for the exact message. If the session still works,
   the line is often harmless noise from a background request.
 
-Provider env vars not applied~
+Environment variables not applied~
   If you see the warning "Vim patch 8.0.902+ required for provider env
   vars", your Vim is too old to pass per-job environment variables via
   |term_start()|. Upgrade to Vim 8.1+ or set the variables in your

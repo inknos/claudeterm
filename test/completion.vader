@@ -4,10 +4,7 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'continue') >= 0
   Assert index(result, 'new') >= 0
   Assert index(result, 'kill') >= 0
-  Assert index(result, 'pr') >= 0
-  Assert index(result, 'worktree') >= 0
   Assert index(result, 'plan') >= 0
-  Assert index(result, 'fast') >= 0
   Assert index(result, 'mode') >= 0
   Assert index(result, 'model') >= 0
   Assert index(result, 'position') >= 0
@@ -17,8 +14,6 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'refsend') >= 0
   Assert index(result, 'refclear') >= 0
   Assert index(result, 'reflist') >= 0
-  Assert index(result, 'verbose') >= 0
-  Assert index(result, 'doctor') >= 0
   Assert index(result, 'version') >= 0
   Assert index(result, 'undo') >= 0
   Assert index(result, 'redo') >= 0
@@ -29,6 +24,14 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'planexec') >= 0
   Assert index(result, 'planclose') >= 0
   Assert index(result, 'prompt') >= 0
+
+Execute (removed commands are absent from completion):
+  let result = circuit#complete('', 'CTerm ', 6)
+  Assert index(result, 'pr') < 0
+  Assert index(result, 'worktree') < 0
+  Assert index(result, 'fast') < 0
+  Assert index(result, 'verbose') < 0
+  Assert index(result, 'doctor') < 0
 
 Execute (subcommand completion filters by prefix):
   let result = circuit#complete('re', 'CTerm re', 8)
@@ -48,60 +51,18 @@ Execute (subcommand completion filters plan subcommands by prefix):
   let result3 = circuit#complete('planc', 'CTerm planc', 11)
   Assert index(result3, 'planclose') >= 0
 
-Execute (mode completion returns claude modes):
-  let g:circuit_provider = 'claude'
-  let result = circuit#complete('p', 'CTerm mode p', 12)
-  Assert index(result, 'plan') >= 0
-  let result = circuit#complete('', 'CTerm mode x', 12)
-  Assert len(result) == 0 || index(result, 'plan') >= 0 || index(result, 'fast') >= 0 || index(result, 'normal') >= 0
-  let result = circuit#complete('f', 'CTerm mode f', 12)
-  Assert index(result, 'fast') >= 0
-
-Execute (mode completion returns agent modes):
-  let g:circuit_provider = 'agent'
-  let result = circuit#complete('p', 'CTerm mode p', 12)
-  Assert index(result, 'plan') >= 0
-  let result = circuit#complete('a', 'CTerm mode a', 12)
-  Assert index(result, 'ask') >= 0
-  let result = circuit#complete('f', 'CTerm mode f', 12)
-  AssertEqual [], result
-
 Execute (mode completion returns plan for opencode):
   let g:circuit_provider = 'opencode'
   let result = circuit#complete('p', 'CTerm mode p', 12)
   Assert index(result, 'plan') >= 0
-  let g:circuit_provider = 'claude'
-
-Execute (model completion returns claude models):
-  let g:circuit_provider = 'claude'
-  let result = circuit#complete('s', 'CTerm model s', 13)
-  Assert index(result, 'sonnet') >= 0
-  let result = circuit#complete('o', 'CTerm model o', 13)
-  Assert index(result, 'opus') >= 0
-  let result = circuit#complete('h', 'CTerm model h', 13)
-  Assert index(result, 'haiku') >= 0
-
-Execute (model completion returns gemini models):
-  let g:circuit_provider = 'gemini'
-  let result = circuit#complete('p', 'CTerm model p', 13)
-  Assert index(result, 'pro') >= 0
-  let result = circuit#complete('f', 'CTerm model f', 13)
-  Assert index(result, 'flash') >= 0
-  Assert index(result, 'flash-lite') >= 0
 
 Execute (model completion returns empty for opencode):
   let g:circuit_provider = 'opencode'
   let result = circuit#complete('s', 'CTerm model s', 13)
   AssertEqual [], result
-  let g:circuit_provider = 'claude'
 
 Execute (position completion is provider-independent):
   let result = circuit#complete('r', 'CTerm position r', 16)
   Assert index(result, 'right') >= 0
-  let result2 = circuit#complete('', 'CTerm position x', 16)
-  " test with a prefix that matches all
-  let result3 = circuit#complete('', 'CTerm position a', 16)
-  let all = circuit#complete('', 'CTerm position z', 16)
-  " just verify the right set exists by checking with known prefixes
   let result4 = circuit#complete('b', 'CTerm position b', 16)
   Assert index(result4, 'bottom') >= 0

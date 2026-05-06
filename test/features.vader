@@ -1,16 +1,26 @@
-Execute (undo warns when unsupported by claude):
-  let g:circuit_provider = 'claude'
+Execute (undo warns about no terminal, not unsupported):
+  let g:circuit_provider = 'opencode'
   redir => output
   silent call circuit#undo()
   redir END
-  Assert output =~# 'undo not supported'
+  Assert output =~# 'no active terminal'
+  Assert output !~# 'not supported'
 
-Execute (redo warns when unsupported by claude):
-  let g:circuit_provider = 'claude'
+Execute (redo warns about no terminal, not unsupported):
+  let g:circuit_provider = 'opencode'
   redir => output
   silent call circuit#redo()
   redir END
-  Assert output =~# 'redo not supported'
+  Assert output =~# 'no active terminal'
+  Assert output !~# 'not supported'
+
+Execute (export warns about no terminal, not unsupported):
+  let g:circuit_provider = 'opencode'
+  redir => output
+  silent call circuit#export()
+  redir END
+  Assert output =~# 'no active terminal'
+  Assert output !~# 'not supported'
 
 Execute (send_staged_ref warns with no pending refs):
   call circuit#clear_staged_refs()
@@ -87,15 +97,11 @@ Execute (stage_and_send_ref clears previous refs before staging):
   exec 'e' fnameescape(fnamemodify('test/vimrc', ':p'))
   call circuit#stage_ref(1, 1)
   call circuit#stage_ref(2, 2)
-  " Two refs are now pending; stage_and_send_ref should discard them
   redir => out
   silent call circuit#stage_and_send_ref(5, 7)
   redir END
-  " It staged only 1 ref (the 5-7 range), not 3
   Assert out =~# '1 pending'
   Assert out !~# '3 pending'
-  " After send (which warns about no terminal), list should still be
-  " just the one ref that couldn't be sent (send_staged_ref bails early)
   redir => out2
   silent call circuit#list_staged_refs()
   redir END
@@ -106,104 +112,32 @@ Execute (stage_and_send_ref clears previous refs before staging):
   let g:circuit_start_on = 1
   bdelete!
 
-Execute (export warns when unsupported by claude):
-  let g:circuit_provider = 'claude'
-  redir => output
-  silent call circuit#export()
-  redir END
-  Assert output =~# 'export not supported'
-
-Execute (stats warns when unsupported by claude):
-  let g:circuit_provider = 'claude'
-  redir => output
-  silent call circuit#stats()
-  redir END
-  Assert output =~# 'stats not supported'
-
-Execute (undo with opencode warns about no terminal, not unsupported):
+Execute (opencode provider has plan_dir set to .opencode/plans):
   let g:circuit_provider = 'opencode'
-  redir => output
-  silent call circuit#undo()
-  redir END
-  Assert output =~# 'no active terminal'
-  Assert output !~# 'not supported'
-  let g:circuit_provider = 'claude'
-
-Execute (redo with opencode warns about no terminal, not unsupported):
-  let g:circuit_provider = 'opencode'
-  redir => output
-  silent call circuit#redo()
-  redir END
-  Assert output =~# 'no active terminal'
-  Assert output !~# 'not supported'
-  let g:circuit_provider = 'claude'
-
-Execute (export with opencode warns about no terminal, not unsupported):
-  let g:circuit_provider = 'opencode'
-  redir => output
-  silent call circuit#export()
-  redir END
-  Assert output =~# 'no active terminal'
-  Assert output !~# 'not supported'
-  let g:circuit_provider = 'claude'
-
-Execute (plan_open with claude opens a buffer):
-  let g:circuit_provider = 'claude'
-  call circuit#plan_open()
-  Assert bufexists(bufnr('%'))
-  silent! bwipeout!
+  let prov = circuit#providers#current()
+  AssertEqual '.opencode/plans', prov.plan_dir
+  Assert empty(prov.exit_plan_cmd)
 
 Execute (plan_exec warns with no plan buffer):
-  let g:circuit_provider = 'claude'
+  let g:circuit_provider = 'opencode'
   redir => output
   silent call circuit#plan_exec()
   redir END
   Assert output =~# 'no plan buffer'
 
 Execute (plan_close warns with no plan buffer):
-  let g:circuit_provider = 'claude'
+  let g:circuit_provider = 'opencode'
   redir => output
   silent call circuit#plan_close()
   redir END
   Assert output =~# 'no plan buffer'
-
-Execute (claude provider has plan_dir set):
-  let g:circuit_provider = 'claude'
-  let prov = circuit#providers#current()
-  Assert !empty(prov.plan_dir), 'claude should have plan_dir set'
-  AssertEqual '~/.claude/plans', prov.plan_dir
-
-Execute (claude provider has exit_plan_cmd set):
-  let g:circuit_provider = 'claude'
-  let prov = circuit#providers#current()
-  AssertEqual 'normal', prov.exit_plan_cmd
-
-Execute (agent provider has empty plan_dir):
-  let g:circuit_provider = 'agent'
-  let prov = circuit#providers#current()
-  Assert empty(prov.plan_dir), 'agent should have empty plan_dir'
-  let g:circuit_provider = 'claude'
-
-Execute (opencode provider has plan_dir set to .opencode/plans):
-  let g:circuit_provider = 'opencode'
-  let prov = circuit#providers#current()
-  AssertEqual '.opencode/plans', prov.plan_dir
-  Assert empty(prov.exit_plan_cmd)
-  let g:circuit_provider = 'claude'
-
-Execute (gemini provider has empty plan_dir and exit_plan_cmd):
-  let g:circuit_provider = 'gemini'
-  let prov = circuit#providers#current()
-  Assert empty(prov.plan_dir)
-  Assert empty(prov.exit_plan_cmd)
-  let g:circuit_provider = 'claude'
 
 Execute (prompt is in subcommand completion list):
   let result = circuit#complete('pro', 'CTerm pro', 9)
   Assert index(result, 'prompt') >= 0
 
 Execute (circuit#prompt exists and is callable):
-  let g:circuit_provider = 'claude'
+  let g:circuit_provider = 'opencode'
   Assert exists('*circuit#prompt')
 
 Execute (send_staged_ref bails when start_on_refsend is 0 and no terminal):
@@ -264,34 +198,14 @@ Execute (opencode provider has env with OPENCODE_EXPERIMENTAL_PLAN_MODE):
   Assert has_key(prov.env, 'OPENCODE_EXPERIMENTAL_PLAN_MODE')
   AssertEqual '1', prov.env.OPENCODE_EXPERIMENTAL_PLAN_MODE
 
-Execute (claude provider has empty env):
-  let prov = circuit#providers#get('claude')
-  Assert has_key(prov, 'env'), 'claude should have env key'
-  Assert empty(prov.env), 'claude env should be empty'
-
-Execute (agent provider has empty env):
-  let prov = circuit#providers#get('agent')
-  Assert has_key(prov, 'env'), 'agent should have env key'
-  Assert empty(prov.env), 'agent env should be empty'
-
-Execute (gemini provider has empty env):
-  let prov = circuit#providers#get('gemini')
-  Assert has_key(prov, 'env'), 'gemini should have env key'
-  Assert empty(prov.env), 'gemini env should be empty'
-
 Execute (g:circuit_env defaults to empty dict):
   Assert type(g:circuit_env) ==# type({})
   Assert empty(g:circuit_env)
 
 Execute (warnings use echomsg and persist in :messages):
-  let g:circuit_provider = 'claude'
+  let g:circuit_provider = 'opencode'
   redir => output
   silent call circuit#undo()
   redir END
-  Assert output =~# 'undo not supported'
-  " echomsg output is captured by redir (both echo and echomsg are);
-  " the key behavioral difference is that echomsg also writes to the
-  " :messages log. We verify the output text is correct above; the
-  " use of echomsg (vs echo) is validated by code inspection + the
-  " fact that redir captures it with the 'silent' modifier.
+  Assert output =~# 'no active terminal'
   Assert output =~# 'vim-circuit:', 'should have vim-circuit prefix'
