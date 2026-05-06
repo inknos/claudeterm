@@ -25,7 +25,8 @@ CONTENTS                                              *circuit-contents*
      6.10 Session List ................... |circuit-sessions|
      6.11 Plan Workflow .................. |circuit-plan-workflow|
      6.12 Command Prompt ................. |circuit-prompt|
-     6.13 Utility ........................ |circuit-utility|
+     6.13 Server ......................... |circuit-server|
+     6.14 Utility ........................ |circuit-utility|
   7. Keymaps .............................. |circuit-keymaps|
      7.1 Normal Mode ..................... |circuit-keymaps-normal|
      7.2 Visual Mode ..................... |circuit-keymaps-visual|
@@ -98,6 +99,8 @@ Feature matrix:                            *circuit-provider-features*
   Stats                     —       —      —       ✓
   Session list              —       ✓      ✓       ✓
   Provider env vars         —       —      —       ✓
+  Server API                —       —      —       ✓
+  TUI pickers               —       —      —       ✓
 
 When you use a feature not supported by your provider, the plugin
 prints a warning instead of failing silently.
@@ -393,6 +396,51 @@ scratch buffer as a fallback.
                         to |input()| with tab-completion when popups are
                         not available.
 
+------------------------------------------------------------------------------
+6.13 Server                                            *circuit-server*
+
+When |g:circuit_provider| is `opencode`, the plugin automatically manages
+a background `opencode serve` process per Vim instance. The server is
+started lazily on the first command that needs it (or at VimEnter when
+|g:circuit_server_mode| is `'start'`) and killed on VimLeave.
+
+The TUI terminal attaches to the managed server via `opencode attach`,
+and commands like |:CTundo|, |:CTchat|, |:CTsend|, and |:CTrefsend|
+use the server HTTP API instead of typing into the terminal.
+
+                                                      *:CTping*
+:CTerm ping             Ensure the server is running, then hit
+:CTping                 `GET /global/health`. Reports the server URL
+                        on success.
+
+                                                      *:CTserve*
+:CTerm serve            Manually start the background server. Normally
+:CTserve                not needed (the server starts lazily), but
+                        useful when |g:circuit_server_mode| is `'manual'`.
+
+                                                      *:CTpick*
+:CTerm pick             Open the TUI session picker overlay via
+:CTpick                 `POST /tui/open-sessions`. Requires the
+                        terminal to be open.
+
+                                                      *:CTmodels*
+:CTerm models           Open the TUI model picker overlay via
+:CTmodels               `POST /tui/open-models`. Requires the
+                        terminal to be open.
+
+------------------------------------------------------------------------------
+6.14 Utility                                          *circuit-utility*
+
+                                                      *:CTdoctor*
+:CTerm doctor           Run the provider's health check command and
+:CTdoctor               display the output. Currently supported by
+                        Claude (`claude doctor`) and Cursor Agent
+                        (`agent about`).
+
+                                                      *:CTversion*
+:CTerm version          Print the provider CLI's version string.
+:CTversion
+
 ==============================================================================
 7. Keymaps                                           *circuit-keymaps*
 
@@ -447,7 +495,8 @@ These keymaps are active when the cursor is inside any terminal buffer.
                          `reflist`, `model`, `verbose`, `doctor`,
                          `version`, `undo`, `redo`, `export`, `stats`,
                          `sessions`, `planopen`, `planexec`,
-                         `planclose`, `prompt`.
+                         `planclose`, `prompt`, `ping`, `serve`,
+                         `pick`, `models`.
 
   :CTerm mode <Tab>      Completes from the active provider's mode list.
                          E.g. `plan`, `fast`, `normal` for Claude;
@@ -563,6 +612,19 @@ g:circuit_worktree_tmux     Number (default: `0`)
                             When `1`, `:CTworktree` always passes the
                             provider's tmux flag. Can also be toggled
                             per-call with `:CTworktree!`.
+
+                                                *g:circuit_server_mode*
+g:circuit_server_mode      String (default: `'lazy'`)
+                            Controls when the background `opencode serve`
+                            process is started:
+                            `'lazy'`   — start on first command that
+                                         needs the server (default).
+                            `'start'`  — start at |VimEnter|.
+                            `'manual'` — never auto-start; use |:CTserve|
+                                         or |:CTping| to start manually.
+                            Only applies when |g:circuit_provider| is
+                            `'opencode'`. The server is always stopped
+                            on |VimLeave|.
 
                                                 *g:circuit_plan_close_on_exec*
 g:circuit_plan_close_on_exec
