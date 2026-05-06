@@ -146,6 +146,27 @@ function! s:start_with_prompt(text, key) abort
         \ {'repeat': l:ctx.max_tries})
 endfunction
 
+" Deliver {text} to the agent via the best available channel for {key}.
+" Server API > term_sendkeys > auto-start with prompt pre-fill.
+" Returns 1 on success, 0 if auto-start is disabled and no terminal.
+function! s:send_text(text, key) abort
+  if s:server_running() && s:term_alive()
+    call s:maybe_show(a:key)
+    call s:server_submit_prompt(a:text)
+  elseif s:term_alive()
+    call s:maybe_show(a:key)
+    call s:term_sendkeys_safe(a:text)
+  else
+    if !s:get_toggle('start_on', a:key)
+      call s:warn('no active terminal')
+      return 0
+    endif
+    call s:start_with_prompt(a:text, a:key)
+    call s:maybe_show(a:key)
+  endif
+  return 1
+endfunction
+
 function! s:maybe_show(key) abort
   if bufwinid(s:term_bufnr) ==# -1 && s:get_toggle('show_on', a:key)
     call s:show()
@@ -873,20 +894,7 @@ function! circuit#send_selection(...) abort
   let l:header = '# From ' . l:fname
   let l:text = l:header . "\n" . join(l:lines, "\n") . "\n"
 
-  if s:server_running() && s:term_alive()
-    call s:maybe_show('send')
-    call s:server_submit_prompt(l:text)
-  elseif s:term_alive()
-    call s:maybe_show('send')
-    call s:term_sendkeys_safe(l:text)
-  else
-    if !s:get_toggle('start_on', 'send')
-      call s:warn('no active terminal')
-      return
-    endif
-    call s:start_with_prompt(l:text, 'send')
-    call s:maybe_show('send')
-  endif
+  call s:send_text(l:text, 'send')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -906,20 +914,7 @@ function! circuit#chat() abort
   endif
   let l:text = l:context . l:msg . "\n"
 
-  if s:server_running() && s:term_alive()
-    call s:maybe_show('chat')
-    call s:server_submit_prompt(l:text)
-  elseif s:term_alive()
-    call s:maybe_show('chat')
-    call s:term_sendkeys_safe(l:text)
-  else
-    if !s:get_toggle('start_on', 'chat')
-      call s:warn('no active terminal')
-      return
-    endif
-    call s:start_with_prompt(l:text, 'chat')
-    call s:maybe_show('chat')
-  endif
+  call s:send_text(l:text, 'chat')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -956,19 +951,8 @@ function! circuit#send_staged_ref() abort
     return
   endif
   let l:text = join(s:staged_file_refs, "\n") . "\n"
-  if s:server_running() && s:term_alive()
-    call s:maybe_show('refsend')
-    call s:server_submit_prompt(l:text)
-  elseif s:term_alive()
-    call s:maybe_show('refsend')
-    call s:term_sendkeys_safe(l:text)
-  else
-    if !s:get_toggle('start_on', 'refsend')
-      call s:warn('no active terminal')
-      return
-    endif
-    call s:start_with_prompt(l:text, 'refsend')
-    call s:maybe_show('refsend')
+  if !s:send_text(l:text, 'refsend')
+    return
   endif
   let s:staged_file_refs = []
   call circuit#hooks#fire('ChatRefSent')
@@ -988,11 +972,7 @@ function! circuit#terminal_c_l() abort
   if !empty(s:staged_file_refs)
     if s:term_alive()
       let l:text = join(s:staged_file_refs, "\n") . "\n"
-      if s:server_running()
-        call s:server_submit_prompt(l:text)
-      else
-        call term_sendkeys(s:term_bufnr, l:text)
-      endif
+      call s:send_text(l:text, 'refsend')
       let s:staged_file_refs = []
       call circuit#hooks#fire('ChatRefSent')
       return ''
