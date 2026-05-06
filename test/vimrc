@@ -1,6 +1,7 @@
 set nocompatible
 set nomore
 filetype off
+let g:circuit_server_mode = 'manual'
 set rtp+=test/vader.vim
 set rtp+=.
 set rtp+=after

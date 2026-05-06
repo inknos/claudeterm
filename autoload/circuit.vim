@@ -18,6 +18,8 @@ let s:plan_bufnr = -1
 let s:pre_plan_bufnr = -1
 let s:env_warned = 0
 let s:just_started = 0
+let s:server_job = -1
+let s:server_port = 0
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -91,6 +93,57 @@ function! s:term_sendkeys_safe(text) abort
   else
     call term_sendkeys(s:term_bufnr, a:text)
   endif
+endfunction
+
+" Check if the TUI has rendered its prompt by scraping the terminal screen.
+function! s:tui_ready() abort
+  if !s:term_alive()
+    return 0
+  endif
+  let l:rows = term_getsize(s:term_bufnr)[0]
+  let l:row = l:rows
+  while l:row > 0
+    let l:cells = term_scrape(s:term_bufnr, l:row)
+    let l:line = join(map(copy(l:cells), 'v:val.chars'), '')
+    if l:line =~# '\(Ask anything\|┃\|╹\)'
+      return 1
+    endif
+    let l:row -= 1
+  endwhile
+  return 0
+endfunction
+
+" Retry callback: wait for TUI to render, then POST /tui/append-prompt.
+function! s:append_prompt_retry(ctx, timer_id) abort
+  let a:ctx.tries += 1
+  if s:tui_ready() && s:server_post('/tui/append-prompt', {'text': a:ctx.text})
+    call timer_stop(a:timer_id)
+    return
+  endif
+  if a:ctx.tries >= a:ctx.max_tries
+    call timer_stop(a:timer_id)
+    if s:term_alive()
+      let s:just_started = 1
+      call s:term_sendkeys_safe(a:ctx.text . "\n")
+    endif
+  endif
+endfunction
+
+" Start a fresh session with {text} pre-filled as the initial prompt.
+" Opens the terminal via toggle(), waits for the TUI to render, then
+" POSTs /tui/append-prompt.  Falls back to term_sendkeys on timeout.
+function! s:start_with_prompt(text, key) abort
+  call circuit#toggle()
+  if !s:term_alive()
+    return
+  endif
+  let l:clean = substitute(a:text, '\n\+$', '', '')
+  if s:tui_ready() && s:server_post('/tui/append-prompt', {'text': l:clean})
+    return
+  endif
+  let l:ctx = {'text': l:clean, 'tries': 0, 'max_tries': 15}
+  call timer_start(200, function('s:append_prompt_retry', [l:ctx]),
+        \ {'repeat': l:ctx.max_tries})
 endfunction
 
 function! s:maybe_show(key) abort
@@ -280,6 +333,11 @@ endfunction
 function! s:build_cmd(...) abort
   let l:p = s:provider()
   let l:cmd = s:resolve_bin()
+  call s:server_ensure()
+  let l:url = s:server_url()
+  if !empty(l:url)
+    let l:cmd .= ' attach ' . l:url
+  endif
   let l:extra = s:get('extra_args', '')
 
   let l:mode = s:current_mode
@@ -777,10 +835,6 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#send_selection(...) abort
-  if !s:maybe_start('send')
-    return
-  endif
-
   if a:0 >= 2
     let l:lo = min([a:1, a:2])
     let l:hi = max([a:1, a:2])
@@ -792,12 +846,21 @@ function! circuit#send_selection(...) abort
     return
   endif
 
-  call s:maybe_show('send')
   let l:fname = expand('%:t')
   let l:header = '# From ' . l:fname
   let l:text = l:header . "\n" . join(l:lines, "\n") . "\n"
 
-  call s:term_sendkeys_safe(l:text)
+  if s:term_alive()
+    call s:maybe_show('send')
+    call s:term_sendkeys_safe(l:text)
+  else
+    if !s:get_toggle('start_on', 'send')
+      call s:warn('no active terminal')
+      return
+    endif
+    call s:start_with_prompt(l:text, 'send')
+    call s:maybe_show('send')
+  endif
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -810,18 +873,24 @@ function! circuit#chat() abort
     return
   endif
 
-  if !s:maybe_start('chat')
-    return
-  endif
-  call s:maybe_show('chat')
-
   let l:fname = expand('#:t')
   let l:context = ''
   if !empty(l:fname)
     let l:context = '(context: ' . l:fname . ') '
   endif
+  let l:text = l:context . l:msg . "\n"
 
-  call s:term_sendkeys_safe(l:context . l:msg . "\n")
+  if s:term_alive()
+    call s:maybe_show('chat')
+    call s:term_sendkeys_safe(l:text)
+  else
+    if !s:get_toggle('start_on', 'chat')
+      call s:warn('no active terminal')
+      return
+    endif
+    call s:start_with_prompt(l:text, 'chat')
+    call s:maybe_show('chat')
+  endif
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -857,12 +926,18 @@ function! circuit#send_staged_ref() abort
     call s:warn('no staged refs; use :CTref (see :help CTref)')
     return
   endif
-  if !s:maybe_start('refsend')
-    return
-  endif
-  call s:maybe_show('refsend')
   let l:text = join(s:staged_file_refs, "\n") . "\n"
-  call s:term_sendkeys_safe(l:text)
+  if s:term_alive()
+    call s:maybe_show('refsend')
+    call s:term_sendkeys_safe(l:text)
+  else
+    if !s:get_toggle('start_on', 'refsend')
+      call s:warn('no active terminal')
+      return
+    endif
+    call s:start_with_prompt(l:text, 'refsend')
+    call s:maybe_show('refsend')
+  endif
   let s:staged_file_refs = []
   call circuit#hooks#fire('ChatRefSent')
   if s:get('refsend_switch_tab', 0)
@@ -874,13 +949,19 @@ function! circuit#send_staged_ref() abort
 endfunction
 
 " Expression mapping for |terminal| mode: send staged refs and Enter,
-" or fall back to window right (|<C-w>|l).
+" or fall back to window right (|<C-w>|l).  When refs are staged but
+" the terminal has exited, delegate to send_staged_ref which can
+" auto-start a new session with --prompt.
 function! circuit#terminal_c_l() abort
-  if !empty(s:staged_file_refs) && s:term_alive()
-    let l:text = join(s:staged_file_refs, "\n") . "\n"
-    call term_sendkeys(s:term_bufnr, l:text)
-    let s:staged_file_refs = []
-    call circuit#hooks#fire('ChatRefSent')
+  if !empty(s:staged_file_refs)
+    if s:term_alive()
+      let l:text = join(s:staged_file_refs, "\n") . "\n"
+      call term_sendkeys(s:term_bufnr, l:text)
+      let s:staged_file_refs = []
+      call circuit#hooks#fire('ChatRefSent')
+      return ''
+    endif
+    call circuit#send_staged_ref()
     return ''
   endif
   return "\<C-\><C-n><C-w>l"
@@ -1048,6 +1129,136 @@ function! circuit#sessions() abort
 endfunction
 
 " ---------------------------------------------------------------------------
+" Server API
+" ---------------------------------------------------------------------------
+
+function! s:server_url() abort
+  if s:server_port > 0
+    return 'http://127.0.0.1:' . s:server_port
+  endif
+  return ''
+endfunction
+
+function! s:server_on_stdout(ch, msg) abort
+  let l:m = matchstr(a:msg, 'listening on http://[^:]\+:\zs\d\+')
+  if !empty(l:m)
+    let s:server_port = str2nr(l:m)
+  endif
+endfunction
+
+function! s:server_running() abort
+  return type(s:server_job) == v:t_job
+        \ && job_status(s:server_job) ==# 'run'
+endfunction
+
+function! s:server_start() abort
+  if s:server_running()
+    return
+  endif
+  let l:bin = s:resolve_bin()
+  let l:cmd = l:bin . ' serve --port 0'
+  let l:opts = {
+        \ 'out_cb': function('s:server_on_stdout'),
+        \ 'err_io': 'null',
+        \ 'stoponexit': 'term',
+        \ }
+  let s:server_port = 0
+  let s:server_job = job_start(l:cmd, l:opts)
+endfunction
+
+function! s:server_stop() abort
+  if s:server_running()
+    call job_stop(s:server_job)
+  endif
+  let s:server_job = -1
+  let s:server_port = 0
+endfunction
+
+" Start the server if not running and mode allows it.  Blocks briefly
+" until the port is known (max ~2 s).
+function! s:server_ensure() abort
+  let l:mode = s:get('server_mode', 'lazy')
+  if l:mode ==# 'manual'
+    return
+  endif
+  if s:server_port > 0 && s:server_running()
+    return
+  endif
+  if !s:server_running()
+    call s:server_start()
+  endif
+  let l:tries = 0
+  while s:server_port == 0 && l:tries < 20
+    sleep 100m
+    let l:tries += 1
+  endwhile
+endfunction
+
+" Hit GET /global/health and return {'ok': 1/0, 'error': '...'}.
+function! s:server_ping() abort
+  let l:url = s:server_url()
+  if empty(l:url)
+    return {'ok': 0, 'error': 'server not running'}
+  endif
+  let l:out = trim(system('curl -s -o /dev/null -w "%{http_code}"'
+        \ . ' ' . shellescape(l:url . '/global/health')))
+  let l:err = v:shell_error
+  if l:err || l:out !~# '^2'
+    return {'ok': 0, 'error': 'server unreachable (HTTP ' . l:out . ')'}
+  endif
+  return {'ok': 1, 'error': ''}
+endfunction
+
+" POST JSON {body} to {path} on the managed server.
+" Returns 1 when the server responds with "true", 0 otherwise.
+function! s:server_post(path, body) abort
+  let l:url = s:server_url()
+  if empty(l:url)
+    return 0
+  endif
+  let l:out = trim(system('curl -s -X POST -H "Content-Type: application/json"'
+        \ . ' -d ' . shellescape(json_encode(a:body))
+        \ . ' ' . shellescape(l:url . a:path)))
+  return !v:shell_error && l:out ==# 'true'
+endfunction
+
+function! circuit#server_start() abort
+  if s:server_running()
+    call s:msg('server already running (' . s:server_url() . ')')
+    return
+  endif
+  call s:server_start()
+  let l:tries = 0
+  while s:server_port == 0 && l:tries < 20
+    sleep 100m
+    let l:tries += 1
+  endwhile
+  if s:server_port > 0
+    call s:msg('server started (' . s:server_url() . ')')
+  else
+    call s:warn('server failed to start')
+  endif
+endfunction
+
+function! circuit#server_stop() abort
+  call s:server_stop()
+endfunction
+
+function! circuit#ping() abort
+  let l:was_running = s:server_running()
+  call s:server_ensure()
+  if !l:was_running && s:server_port > 0
+    call s:msg('started server at ' . s:server_url())
+  endif
+  let l:result = s:server_ping()
+  if l:result.ok
+    call s:msg('server OK (' . s:server_url() . ')')
+  else
+    call s:warn(l:result.error)
+  endif
+endfunction
+
+" ---------------------------------------------------------------------------
 " Tab-completion helper
 " ---------------------------------------------------------------------------
 
@@ -1061,7 +1272,7 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
           \ 'ref', 'refsend', 'refclear', 'reflist', 'model', 'verbose',
           \ 'doctor', 'version', 'undo', 'redo', 'export', 'stats',
           \ 'sessions', 'planopen', 'planexec', 'planclose',
-          \ 'prompt']
+          \ 'prompt', 'ping', 'serve']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')
   endif
 

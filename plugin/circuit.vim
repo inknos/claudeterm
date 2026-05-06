@@ -55,6 +55,7 @@ let g:circuit_checktime_on_bufenter = get(g:, 'circuit_checktime_on_bufenter', 1
 let g:circuit_autoread_during_session = get(g:, 'circuit_autoread_during_session', 0)
 let g:circuit_refsend_switch_tab = get(g:, 'circuit_refsend_switch_tab', 0)
 let g:circuit_sendkeys_delay   = get(g:, 'circuit_sendkeys_delay', 200)
+let g:circuit_server_mode      = get(g:, 'circuit_server_mode', 'lazy')
 
 " Keymap variables (all overridable)
 let g:circuit_map_toggle       = get(g:, 'circuit_map_toggle', '<leader>c')
@@ -98,6 +99,8 @@ command! -nargs=0 CTexport   call circuit#export()
 command! -nargs=0 CTstats    call circuit#stats()
 command! -nargs=0 CTsessions call circuit#sessions()
 command! -nargs=0 CTprompt   call circuit#prompt()
+command! -nargs=0 CTping     call circuit#ping()
+command! -nargs=0 CTserve    call circuit#server_start()
 
 function! s:dispatch(...) abort
   if a:0 == 0
@@ -177,6 +180,10 @@ function! s:dispatch(...) abort
     endif
   elseif l:cmd ==# 'prompt'
     call circuit#prompt()
+  elseif l:cmd ==# 'ping'
+    call circuit#ping()
+  elseif l:cmd ==# 'serve'
+    call circuit#server_start()
   else
     echoerr 'vim-circuit: unknown subcommand "' . l:cmd . '"'
   endif
@@ -229,4 +236,12 @@ endif
 augroup circuit_quit
   autocmd!
   autocmd QuitPre * call circuit#kill()
+augroup END
+
+augroup circuit_server
+  autocmd!
+  if g:circuit_server_mode ==# 'start'
+    autocmd VimEnter * call circuit#server_start()
+  endif
+  autocmd VimLeave * call circuit#server_stop()
 augroup END
