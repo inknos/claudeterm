@@ -266,6 +266,14 @@ function! s:send_slash_cmd(key, hook) abort
     call s:warn(a:key . ' not supported by ' . g:circuit_provider)
     return
   endif
+  if s:server_running()
+    if s:server_tui_cmd(a:key)
+      call circuit#hooks#fire(a:hook)
+    else
+      call s:warn(a:key . ' failed (server returned error)')
+    endif
+    return
+  endif
   if !s:term_alive()
     call s:warn('no active terminal')
     return
