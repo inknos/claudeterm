@@ -659,12 +659,18 @@ function! circuit#set_mode(mode) abort
     return
   endif
 
-  if !s:maybe_start('mode')
-    return
+  if s:server_running()
+    if !s:server_tui_cmd(a:mode)
+      call s:warn('mode switch failed (server returned error)')
+      return
+    endif
+  else
+    if !s:maybe_start('mode')
+      return
+    endif
+    call s:maybe_show('mode')
+    call s:term_sendkeys_safe(l:p.mode_prefix . a:mode . "\n")
   endif
-  call s:maybe_show('mode')
-
-  call s:term_sendkeys_safe(l:p.mode_prefix . a:mode . "\n")
   let s:current_mode = a:mode
   call circuit#hooks#fire('ModeChange')
 endfunction
@@ -751,12 +757,21 @@ function! circuit#plan_exec() abort
 
   let l:p = s:provider()
   if s:current_mode ==# 'plan' && !empty(l:p.exit_plan_cmd)
-    call term_sendkeys(s:term_bufnr,
-          \ l:p.mode_prefix . l:p.exit_plan_cmd . "\n")
+    if s:server_running()
+      call s:server_tui_cmd(l:p.exit_plan_cmd)
+    else
+      call term_sendkeys(s:term_bufnr,
+            \ l:p.mode_prefix . l:p.exit_plan_cmd . "\n")
+    endif
     let s:current_mode = l:p.exit_plan_cmd
   endif
 
-  call term_sendkeys(s:term_bufnr, "Execute this plan:\n" . l:text . "\n")
+  let l:plan_text = "Execute this plan:\n" . l:text . "\n"
+  if s:server_running()
+    call s:server_submit_prompt(l:plan_text)
+  else
+    call term_sendkeys(s:term_bufnr, l:plan_text)
+  endif
   call circuit#hooks#fire('PlanExec')
 
   if s:get('plan_close_on_exec', 1)
@@ -858,7 +873,10 @@ function! circuit#send_selection(...) abort
   let l:header = '# From ' . l:fname
   let l:text = l:header . "\n" . join(l:lines, "\n") . "\n"
 
-  if s:term_alive()
+  if s:server_running() && s:term_alive()
+    call s:maybe_show('send')
+    call s:server_submit_prompt(l:text)
+  elseif s:term_alive()
     call s:maybe_show('send')
     call s:term_sendkeys_safe(l:text)
   else
@@ -888,7 +906,10 @@ function! circuit#chat() abort
   endif
   let l:text = l:context . l:msg . "\n"
 
-  if s:term_alive()
+  if s:server_running() && s:term_alive()
+    call s:maybe_show('chat')
+    call s:server_submit_prompt(l:text)
+  elseif s:term_alive()
     call s:maybe_show('chat')
     call s:term_sendkeys_safe(l:text)
   else
@@ -935,7 +956,10 @@ function! circuit#send_staged_ref() abort
     return
   endif
   let l:text = join(s:staged_file_refs, "\n") . "\n"
-  if s:term_alive()
+  if s:server_running() && s:term_alive()
+    call s:maybe_show('refsend')
+    call s:server_submit_prompt(l:text)
+  elseif s:term_alive()
     call s:maybe_show('refsend')
     call s:term_sendkeys_safe(l:text)
   else
@@ -964,7 +988,11 @@ function! circuit#terminal_c_l() abort
   if !empty(s:staged_file_refs)
     if s:term_alive()
       let l:text = join(s:staged_file_refs, "\n") . "\n"
-      call term_sendkeys(s:term_bufnr, l:text)
+      if s:server_running()
+        call s:server_submit_prompt(l:text)
+      else
+        call term_sendkeys(s:term_bufnr, l:text)
+      endif
       let s:staged_file_refs = []
       call circuit#hooks#fire('ChatRefSent')
       return ''
