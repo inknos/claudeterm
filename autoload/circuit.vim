@@ -1222,6 +1222,20 @@ function! s:server_post(path, body) abort
   return !v:shell_error && l:out ==# 'true'
 endfunction
 
+" Send a TUI command (e.g. 'undo', 'plan') via POST /tui/execute-command.
+function! s:server_tui_cmd(command) abort
+  return s:server_post('/tui/execute-command', {'command': a:command})
+endfunction
+
+" Clear the TUI prompt, append {text}, and submit it.
+function! s:server_submit_prompt(text) abort
+  call s:server_post('/tui/clear-prompt', {})
+  if !s:server_post('/tui/append-prompt', {'text': a:text})
+    return 0
+  endif
+  return s:server_post('/tui/submit-prompt', {})
+endfunction
+
 function! circuit#server_start() abort
   if s:server_running()
     call s:msg('server already running (' . s:server_url() . ')')
