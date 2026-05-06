@@ -16,12 +16,6 @@ let s:autoread_armed = 0
 let s:staged_file_refs = []
 let s:plan_bufnr = -1
 let s:pre_plan_bufnr = -1
-let s:prompt_winid = -1
-let s:prompt_text = ''
-let s:prompt_matches = []
-let s:prompt_selected = 0
-let s:prompt_prefix = ''
-let s:prompt_props = []
 let s:env_warned = 0
 let s:just_started = 0
 
@@ -184,6 +178,61 @@ function! s:needs_provider() abort
   return 1
 endfunction
 
+" Guard: verify that a provider is configured and that its {field} is
+" non-empty.  Returns the provider dict on success, or {} when the
+" feature is missing (after warning the user).
+function! s:check_supported(field, label) abort
+  if s:needs_provider()
+    return {}
+  endif
+  let l:p = s:provider()
+  if empty(l:p[a:field])
+    call s:warn(a:label . ' not supported by ' . g:circuit_provider)
+    return {}
+  endif
+  return l:p
+endfunction
+
+" Return the effective CLI binary: the user's b:/g:circuit_command
+" override if set, otherwise the provider's default command.
+function! s:resolve_bin() abort
+  let l:override = s:get('command', '')
+  return !empty(l:override) ? l:override : s:provider().command
+endfunction
+
+" Look up a provider slash command by {key} and send it to the running
+" terminal, then fire {hook}.  Warns if the command is unsupported or
+" no terminal is active.
+function! s:send_slash_cmd(key, hook) abort
+  if s:needs_provider()
+    return
+  endif
+  let l:p = s:provider()
+  let l:cmd = get(l:p.slash_commands, a:key, '')
+  if empty(l:cmd)
+    call s:warn(a:key . ' not supported by ' . g:circuit_provider)
+    return
+  endif
+  if !s:term_alive()
+    call s:warn('no active terminal')
+    return
+  endif
+  call term_sendkeys(s:term_bufnr, l:cmd . "\n")
+  call circuit#hooks#fire(a:hook)
+endfunction
+
+" Run a provider's CLI subcommand (e.g. doctor, stats) via system()
+" and echo the output.  {provider_field} is the key in the provider
+" dict holding the subcommand string; {label} is the human-readable
+" feature name for the unsupported warning.
+function! s:run_cli_cmd(provider_field, label) abort
+  let l:p = s:check_supported(a:provider_field, a:label)
+  if empty(l:p)
+    return
+  endif
+  echo trim(system(s:resolve_bin() . ' ' . l:p[a:provider_field] . ' 2>&1'))
+endfunction
+
 function! s:merged_env() abort
   let l:p = s:provider()
   let l:env = copy(get(l:p, 'env', {}))
@@ -230,8 +279,7 @@ endfunction
 
 function! s:build_cmd(...) abort
   let l:p = s:provider()
-  let l:override = s:get('command', '')
-  let l:cmd = !empty(l:override) ? l:override : l:p.command
+  let l:cmd = s:resolve_bin()
   let l:extra = s:get('extra_args', '')
 
   let l:mode = s:current_mode
@@ -391,9 +439,7 @@ function! circuit#resume() abort
   " an invalid `opencode --session` with no id.
   if empty(l:p.resume) && !empty(l:p.session_list_cmd)
     call s:kill_term_if_alive()
-    let l:override = s:get('command', '')
-    let l:bin = !empty(l:override) ? l:override : l:p.command
-    let l:cmd = l:bin . ' ' . l:p.session_list_cmd
+    let l:cmd = s:resolve_bin() . ' ' . l:p.session_list_cmd
     call s:open_with_cmd(l:cmd)
     call circuit#hooks#fire('SessionChange')
     return
@@ -412,35 +458,22 @@ function! circuit#continue() abort
   if s:needs_provider()
     return
   endif
-  call s:kill_term_if_alive()
-  let l:cmd = s:build_cmd(s:provider().continue)
-  call s:open_with_cmd(l:cmd)
-  call circuit#hooks#fire('SessionChange')
+  call s:restart_session(s:provider().continue, 'SessionChange')
 endfunction
 
 function! circuit#new() abort
   if s:needs_provider()
     return
   endif
-  call s:kill_term_if_alive()
-  let l:cmd = s:build_cmd('')
-  call s:open_with_cmd(l:cmd)
-  call circuit#hooks#fire('SessionChange')
+  call s:restart_session('', 'SessionChange')
 endfunction
 
 function! circuit#from_pr() abort
-  if s:needs_provider()
+  let l:p = s:check_supported('from_pr_flag', 'from-pr')
+  if empty(l:p)
     return
   endif
-  let l:p = s:provider()
-  if empty(l:p.from_pr_flag)
-    call s:warn('from-pr not supported by ' . g:circuit_provider)
-    return
-  endif
-  call s:kill_term_if_alive()
-  let l:cmd = s:build_cmd(l:p.from_pr_flag)
-  call s:open_with_cmd(l:cmd)
-  call circuit#hooks#fire('SessionChange')
+  call s:restart_session(l:p.from_pr_flag, 'SessionChange')
 endfunction
 
 function! circuit#kill() abort
@@ -513,7 +546,21 @@ function! s:kill_term_if_alive() abort
   call s:maybe_restore_autoread_after_session()
 endfunction
 
-function! s:open_with_cmd(cmd) abort
+" Kill any running terminal, rebuild the CLI command with {extra}
+" appended, open a fresh terminal split, and fire {hook} (if non-empty).
+function! s:restart_session(extra, hook) abort
+  call s:kill_term_if_alive()
+  let l:cmd = s:build_cmd(a:extra)
+  call s:open_with_cmd(l:cmd)
+  if !empty(a:hook)
+    call circuit#hooks#fire(a:hook)
+  endif
+endfunction
+
+" Open a terminal split running {cmd}.  lcd to the project root, start
+" the job, configure the window, arm autoread and the reload timer.
+" Optional second arg overrides the hook name (default 'Open').
+function! s:open_with_cmd(cmd, ...) abort
   let l:cwd = s:get('use_git_root', 1) ? s:git_root() : getcwd()
 
   let l:saved_dir = getcwd()
@@ -532,7 +579,7 @@ function! s:open_with_cmd(cmd) abort
   call s:configure_term_window()
   call s:maybe_enable_autoread_for_session()
   call s:start_reload_timer()
-  call circuit#hooks#fire('Open')
+  call circuit#hooks#fire(a:0 > 0 ? a:1 : 'Open')
   call s:focus_term()
 endfunction
 
@@ -541,12 +588,8 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#set_mode(mode) abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  if empty(l:p.modes)
-    call s:warn('interactive modes not supported by ' . g:circuit_provider)
+  let l:p = s:check_supported('modes', 'interactive modes')
+  if empty(l:p)
     return
   endif
 
@@ -683,18 +726,12 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#set_model(model) abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  if empty(l:p.model_flag)
-    call s:warn('model switching not supported by ' . g:circuit_provider)
+  let l:p = s:check_supported('model_flag', 'model switching')
+  if empty(l:p)
     return
   endif
   let s:current_model = a:model
-  call s:kill_term_if_alive()
-  let l:cmd = s:build_cmd(l:p.continue)
-  call s:open_with_cmd(l:cmd)
+  call s:restart_session(l:p.continue, '')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -702,20 +739,14 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#worktree(name, bang) abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  if empty(l:p.worktree_flag)
-    call s:warn('worktree not supported by ' . g:circuit_provider)
+  let l:p = s:check_supported('worktree_flag', 'worktree')
+  if empty(l:p)
     return
   endif
 
   call s:kill_term_if_alive()
 
-  let l:override = s:get('command', '')
-  let l:cmd = !empty(l:override) ? l:override : l:p.command
-  let l:cmd .= ' ' . l:p.worktree_flag
+  let l:cmd = s:resolve_bin() . ' ' . l:p.worktree_flag
   if !empty(a:name)
     let l:cmd .= ' ' . a:name
   endif
@@ -724,26 +755,7 @@ function! circuit#worktree(name, bang) abort
     let l:cmd .= ' ' . l:p.tmux_flag
   endif
 
-  let l:cwd = s:get('use_git_root', 1) ? s:git_root() : getcwd()
-  let l:saved_dir = getcwd()
-  execute 'lcd ' . fnameescape(l:cwd)
-  call s:open_split()
-  let l:opts = {'curwin': 1, 'term_finish': 'close'}
-  let l:env = s:merged_env()
-  if !empty(l:env)
-    let l:opts.env = l:env
-  endif
-  call term_start(l:cmd, l:opts)
-  execute 'lcd ' . fnameescape(l:saved_dir)
-
-  let s:term_bufnr = bufnr('%')
-  let s:term_winid = win_getid()
-
-  call s:configure_term_window()
-  call s:maybe_enable_autoread_for_session()
-  call s:start_reload_timer()
-  call circuit#hooks#fire('Worktree')
-  call s:focus_term()
+  call s:open_with_cmd(l:cmd, 'Worktree')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -751,18 +763,12 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#toggle_verbose() abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  if empty(l:p.verbose_flag)
-    call s:warn('verbose not supported by ' . g:circuit_provider)
+  let l:p = s:check_supported('verbose_flag', 'verbose')
+  if empty(l:p)
     return
   endif
   let s:verbose = !s:verbose
-  call s:kill_term_if_alive()
-  let l:cmd = s:build_cmd(l:p.continue)
-  call s:open_with_cmd(l:cmd)
+  call s:restart_session(l:p.continue, '')
   call s:msg('verbose ' . (s:verbose ? 'ON' : 'OFF'))
 endfunction
 
@@ -862,6 +868,7 @@ function! circuit#send_staged_ref() abort
   if s:get('refsend_switch_tab', 0)
     call s:goto_term_tab()
   elseif bufwinid(s:term_bufnr) !=# -1
+    call win_gotoid(bufwinid(s:term_bufnr))
     call s:focus_term()
   endif
 endfunction
@@ -919,17 +926,7 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#doctor() abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  if empty(l:p.doctor_cmd)
-    call s:warn('health check not supported by ' . g:circuit_provider)
-    return
-  endif
-  let l:override = s:get('command', '')
-  let l:bin = !empty(l:override) ? l:override : l:p.command
-  echo trim(system(l:bin . ' ' . l:p.doctor_cmd . ' 2>&1'))
+  call s:run_cli_cmd('doctor_cmd', 'health check')
 endfunction
 
 function! circuit#version() abort
@@ -937,9 +934,7 @@ function! circuit#version() abort
     return
   endif
   let l:p = s:provider()
-  let l:override = s:get('command', '')
-  let l:bin = !empty(l:override) ? l:override : l:p.command
-  let l:cli_ver = trim(system(l:bin . ' ' . l:p.version_flag . ' 2>&1'))
+  let l:cli_ver = trim(system(s:resolve_bin() . ' ' . l:p.version_flag . ' 2>&1'))
   echo 'vim-circuit:  0.1.0'
   echo 'provider:     ' . g:circuit_provider
   echo 'cli version:  ' . l:cli_ver
@@ -1010,39 +1005,11 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#undo() abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  let l:cmd = get(l:p.slash_commands, 'undo', '')
-  if empty(l:cmd)
-    call s:warn('undo not supported by ' . g:circuit_provider)
-    return
-  endif
-  if !s:term_alive()
-    call s:warn('no active terminal')
-    return
-  endif
-  call term_sendkeys(s:term_bufnr, l:cmd . "\n")
-  call circuit#hooks#fire('Undo')
+  call s:send_slash_cmd('undo', 'Undo')
 endfunction
 
 function! circuit#redo() abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  let l:cmd = get(l:p.slash_commands, 'redo', '')
-  if empty(l:cmd)
-    call s:warn('redo not supported by ' . g:circuit_provider)
-    return
-  endif
-  if !s:term_alive()
-    call s:warn('no active terminal')
-    return
-  endif
-  call term_sendkeys(s:term_bufnr, l:cmd . "\n")
-  call circuit#hooks#fire('Redo')
+  call s:send_slash_cmd('redo', 'Redo')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -1050,21 +1017,7 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#export() abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  let l:cmd = get(l:p.slash_commands, 'export', '')
-  if empty(l:cmd)
-    call s:warn('export not supported by ' . g:circuit_provider)
-    return
-  endif
-  if !s:term_alive()
-    call s:warn('no active terminal')
-    return
-  endif
-  call term_sendkeys(s:term_bufnr, l:cmd . "\n")
-  call circuit#hooks#fire('Export')
+  call s:send_slash_cmd('export', 'Export')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -1072,17 +1025,7 @@ endfunction
 " ---------------------------------------------------------------------------
 
 function! circuit#stats() abort
-  if s:needs_provider()
-    return
-  endif
-  let l:p = s:provider()
-  if empty(l:p.stats_cmd)
-    call s:warn('stats not supported by ' . g:circuit_provider)
-    return
-  endif
-  let l:override = s:get('command', '')
-  let l:bin = !empty(l:override) ? l:override : l:p.command
-  echo trim(system(l:bin . ' ' . l:p.stats_cmd . ' 2>&1'))
+  call s:run_cli_cmd('stats_cmd', 'stats')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -1099,9 +1042,7 @@ function! circuit#sessions() abort
     return
   endif
   call s:kill_term_if_alive()
-  let l:override = s:get('command', '')
-  let l:bin = !empty(l:override) ? l:override : l:p.command
-  let l:cmd = l:bin . ' ' . l:p.session_list_cmd
+  let l:cmd = s:resolve_bin() . ' ' . l:p.session_list_cmd
   call s:open_with_cmd(l:cmd)
   call circuit#hooks#fire('SessionList')
 endfunction
@@ -1140,210 +1081,6 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
   return []
 endfunction
 
-" ---------------------------------------------------------------------------
-" Floating command prompt (command palette)
-" ---------------------------------------------------------------------------
-
-let s:prompt_needs_arg = ['mode', 'model', 'position']
-
-function! s:prompt_get_items(prefix) abort
-  if empty(a:prefix)
-    return circuit#complete('', 'CTerm ', 6)
-  endif
-  return circuit#complete('', 'CTerm ' . a:prefix . ' ', 6 + len(a:prefix) + 1)
-endfunction
-
-function! s:prompt_render() abort
-  let l:prompt = empty(s:prompt_prefix)
-        \ ? '> ' . s:prompt_text
-        \ : s:prompt_prefix . '> ' . s:prompt_text
-  let l:lines = [l:prompt]
-  let l:props = []
-  let l:i = 0
-  for l:m in s:prompt_matches
-    let l:line = '  ' . l:m
-    if l:i ==# s:prompt_selected
-      call add(l:props, #{
-            \ line: len(l:lines) + 1,
-            \ hl: 'PmenuSel',
-            \ })
-    endif
-    call add(l:lines, l:line)
-    let l:i += 1
-  endfor
-  if empty(s:prompt_matches)
-    call add(l:lines, '  (no matches)')
-  endif
-  let s:prompt_props = l:props
-  return l:lines
-endfunction
-
-function! s:prompt_apply_props() abort
-  if s:prompt_winid < 1
-    return
-  endif
-  let l:bufnr = winbufnr(s:prompt_winid)
-  if l:bufnr < 1
-    return
-  endif
-  for l:p in s:prompt_props
-    call prop_type_add('CircuitSel', #{
-          \ bufnr: l:bufnr,
-          \ highlight: l:p.hl,
-          \ override: 1,
-          \ })
-    let l:text = getbufline(l:bufnr, l:p.line)
-    if !empty(l:text)
-      call prop_add(l:p.line, 1, #{
-            \ type: 'CircuitSel',
-            \ length: len(l:text[0]),
-            \ bufnr: l:bufnr,
-            \ })
-    endif
-  endfor
-endfunction
-
-function! s:prompt_clear_props() abort
-  if s:prompt_winid < 1
-    return
-  endif
-  let l:bufnr = winbufnr(s:prompt_winid)
-  if l:bufnr < 1
-    return
-  endif
-  silent! call prop_type_delete('CircuitSel', #{bufnr: l:bufnr})
-endfunction
-
-function! s:fuzzy_match(str, pattern) abort
-  let l:si = 0
-  let l:pi = 0
-  let l:slen = len(a:str)
-  let l:plen = len(a:pattern)
-  while l:si < l:slen && l:pi < l:plen
-    if a:str[l:si] ==# a:pattern[l:pi]
-      let l:pi += 1
-    endif
-    let l:si += 1
-  endwhile
-  return l:pi ==# l:plen
-endfunction
-
-function! s:prompt_update() abort
-  let s:prompt_matches = s:prompt_get_items(s:prompt_prefix)
-  if !empty(s:prompt_text)
-    call filter(s:prompt_matches, 's:fuzzy_match(v:val, s:prompt_text)')
-  endif
-  if s:prompt_selected >= len(s:prompt_matches)
-    let s:prompt_selected = max([0, len(s:prompt_matches) - 1])
-  endif
-  call s:prompt_clear_props()
-  call popup_settext(s:prompt_winid, s:prompt_render())
-  call s:prompt_apply_props()
-endfunction
-
-function! s:prompt_filter(winid, key) abort
-  if a:key ==# "\<Esc>" || a:key ==# "\<C-c>"
-    call popup_close(a:winid, -1)
-    return 1
-  endif
-  if a:key ==# "\<CR>"
-    if !empty(s:prompt_matches)
-      call popup_close(a:winid, s:prompt_selected + 1)
-    else
-      call popup_close(a:winid, -1)
-    endif
-    return 1
-  endif
-  if a:key ==# "\<Tab>" || a:key ==# "\<Down>" || a:key ==# "\<C-n>"
-    if !empty(s:prompt_matches)
-      let s:prompt_selected = (s:prompt_selected + 1) % len(s:prompt_matches)
-      call s:prompt_clear_props()
-      call popup_settext(a:winid, s:prompt_render())
-      call s:prompt_apply_props()
-    endif
-    return 1
-  endif
-  if a:key ==# "\<S-Tab>" || a:key ==# "\<Up>" || a:key ==# "\<C-p>"
-    if !empty(s:prompt_matches)
-      let s:prompt_selected = (s:prompt_selected - 1 + len(s:prompt_matches))
-            \ % len(s:prompt_matches)
-      call s:prompt_clear_props()
-      call popup_settext(a:winid, s:prompt_render())
-      call s:prompt_apply_props()
-    endif
-    return 1
-  endif
-  if a:key ==# "\<BS>"
-    if !empty(s:prompt_text)
-      let s:prompt_text = s:prompt_text[:-2]
-      let s:prompt_selected = 0
-      call s:prompt_update()
-    endif
-    return 1
-  endif
-  if a:key ==# "\<C-u>"
-    let s:prompt_text = ''
-    let s:prompt_selected = 0
-    call s:prompt_update()
-    return 1
-  endif
-  if a:key =~# '^[[:print:]]$'
-    let s:prompt_text .= a:key
-    let s:prompt_selected = 0
-    call s:prompt_update()
-    return 1
-  endif
-  return 1
-endfunction
-
-function! s:prompt_callback(winid, result) abort
-  let s:prompt_winid = -1
-  if a:result <= 0 || empty(s:prompt_matches)
-    return
-  endif
-  let l:cmd = s:prompt_matches[a:result - 1]
-  if empty(s:prompt_prefix) && index(s:prompt_needs_arg, l:cmd) >= 0
-    call s:prompt_open(l:cmd)
-    return
-  endif
-  if !empty(s:prompt_prefix)
-    execute 'CTerm ' . s:prompt_prefix . ' ' . l:cmd
-  else
-    execute 'CTerm ' . l:cmd
-  endif
-endfunction
-
-function! s:prompt_open(prefix) abort
-  let s:prompt_text = ''
-  let s:prompt_selected = 0
-  let s:prompt_prefix = a:prefix
-  let s:prompt_matches = s:prompt_get_items(a:prefix)
-  let s:prompt_winid = popup_create(s:prompt_render(), {
-        \ 'filter': function('s:prompt_filter'),
-        \ 'callback': function('s:prompt_callback'),
-        \ 'title': ' Circuit ',
-        \ 'minwidth': 35,
-        \ 'maxwidth': 50,
-        \ 'maxheight': 20,
-        \ 'border': [],
-        \ 'borderchars': ["\u2500", "\u2502", "\u2500", "\u2502",
-        \   "\u256d", "\u256e", "\u256f", "\u2570"],
-        \ 'borderhighlight': ['Comment'],
-        \ 'highlight': 'Normal',
-        \ 'padding': [0, 1, 0, 1],
-        \ 'pos': 'center',
-        \ 'zindex': 200,
-        \ })
-  call s:prompt_apply_props()
-endfunction
-
 function! circuit#prompt() abort
-  if !has('popupwin')
-    let l:cmd = input('CTerm> ', '', 'customlist,circuit#complete')
-    if !empty(l:cmd)
-      execute 'CTerm ' . l:cmd
-    endif
-    return
-  endif
-  call s:prompt_open('')
+  call circuit#prompt#open()
 endfunction
