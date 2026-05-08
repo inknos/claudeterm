@@ -8,10 +8,12 @@
 let s:prompt_winid = -1
 let s:prompt_text = ''
 let s:prompt_matches = []
+let s:prompt_positions = []
 let s:prompt_selected = 0
 let s:prompt_prefix = ''
 let s:prompt_props = []
 let s:prompt_needs_arg = ['mode', 'model', 'position']
+let s:has_matchfuzzypos = exists('*matchfuzzypos')
 
 " ---------------------------------------------------------------------------
 " Helpers
@@ -33,11 +35,14 @@ function! s:render() abort
   let l:i = 0
   for l:m in s:prompt_matches
     let l:line = '  ' . l:m
+    let l:lineno = len(l:lines) + 1
     if l:i ==# s:prompt_selected
-      call add(l:props, #{
-            \ line: len(l:lines) + 1,
-            \ hl: 'PmenuSel',
-            \ })
+      call add(l:props, #{line: l:lineno, hl: 'PmenuSel', cols: []})
+    endif
+    if l:i < len(s:prompt_positions) && !empty(s:prompt_positions[l:i])
+      let l:match_cols = map(copy(s:prompt_positions[l:i]),
+            \ 'v:val + 3')
+      call add(l:props, #{line: l:lineno, hl: 'Special', cols: l:match_cols})
     endif
     call add(l:lines, l:line)
     let l:i += 1
@@ -57,19 +62,43 @@ function! s:apply_props() abort
   if l:bufnr < 1
     return
   endif
+  let l:sel_added = 0
+  let l:match_added = 0
   for l:p in s:prompt_props
-    call prop_type_add('CircuitSel', #{
-          \ bufnr: l:bufnr,
-          \ highlight: l:p.hl,
-          \ override: 1,
-          \ })
-    let l:text = getbufline(l:bufnr, l:p.line)
-    if !empty(l:text)
-      call prop_add(l:p.line, 1, #{
-            \ type: 'CircuitSel',
-            \ length: len(l:text[0]),
-            \ bufnr: l:bufnr,
-            \ })
+    if empty(l:p.cols)
+      if !l:sel_added
+        call prop_type_add('CircuitSel', #{
+              \ bufnr: l:bufnr,
+              \ highlight: l:p.hl,
+              \ override: 1,
+              \ })
+        let l:sel_added = 1
+      endif
+      let l:text = getbufline(l:bufnr, l:p.line)
+      if !empty(l:text)
+        call prop_add(l:p.line, 1, #{
+              \ type: 'CircuitSel',
+              \ length: len(l:text[0]),
+              \ bufnr: l:bufnr,
+              \ })
+      endif
+    else
+      if !l:match_added
+        call prop_type_add('CircuitMatch', #{
+              \ bufnr: l:bufnr,
+              \ highlight: l:p.hl,
+              \ override: 1,
+              \ combine: 1,
+              \ })
+        let l:match_added = 1
+      endif
+      for l:col in l:p.cols
+        call prop_add(l:p.line, l:col, #{
+              \ type: 'CircuitMatch',
+              \ length: 1,
+              \ bufnr: l:bufnr,
+              \ })
+      endfor
     endif
   endfor
 endfunction
@@ -83,6 +112,7 @@ function! s:clear_props() abort
     return
   endif
   silent! call prop_type_delete('CircuitSel', #{bufnr: l:bufnr})
+  silent! call prop_type_delete('CircuitMatch', #{bufnr: l:bufnr})
 endfunction
 
 " Re-render the floating prompt popup: clear highlight props, update
@@ -93,24 +123,46 @@ function! s:refresh() abort
   call s:apply_props()
 endfunction
 
-function! s:fuzzy_match(str, pattern) abort
-  let l:si = 0
-  let l:pi = 0
-  let l:slen = len(a:str)
-  let l:plen = len(a:pattern)
-  while l:si < l:slen && l:pi < l:plen
-    if a:str[l:si] ==# a:pattern[l:pi]
-      let l:pi += 1
+function! s:fuzzy_filter(items, query) abort
+  if s:has_matchfuzzypos
+    let l:result = matchfuzzypos(a:items, a:query)
+    let s:prompt_matches = l:result[0]
+    let s:prompt_positions = l:result[1]
+    return
+  endif
+  let l:matches = []
+  let l:positions = []
+  let l:pat = tolower(a:query)
+  for l:item in a:items
+    let l:lower = tolower(l:item)
+    let l:si = 0
+    let l:pi = 0
+    let l:slen = len(l:lower)
+    let l:plen = len(l:pat)
+    let l:cols = []
+    while l:si < l:slen && l:pi < l:plen
+      if l:lower[l:si] ==# l:pat[l:pi]
+        call add(l:cols, l:si)
+        let l:pi += 1
+      endif
+      let l:si += 1
+    endwhile
+    if l:pi ==# l:plen
+      call add(l:matches, l:item)
+      call add(l:positions, l:cols)
     endif
-    let l:si += 1
-  endwhile
-  return l:pi ==# l:plen
+  endfor
+  let s:prompt_matches = l:matches
+  let s:prompt_positions = l:positions
 endfunction
 
 function! s:update() abort
-  let s:prompt_matches = s:get_items(s:prompt_prefix)
+  let l:items = s:get_items(s:prompt_prefix)
   if !empty(s:prompt_text)
-    call filter(s:prompt_matches, 's:fuzzy_match(v:val, s:prompt_text)')
+    call s:fuzzy_filter(l:items, s:prompt_text)
+  else
+    let s:prompt_matches = l:items
+    let s:prompt_positions = []
   endif
   if s:prompt_selected >= len(s:prompt_matches)
     let s:prompt_selected = max([0, len(s:prompt_matches) - 1])
@@ -199,6 +251,7 @@ function! s:popup_open(prefix) abort
   let s:prompt_selected = 0
   let s:prompt_prefix = a:prefix
   let s:prompt_matches = s:get_items(a:prefix)
+  let s:prompt_positions = []
   let s:prompt_winid = popup_create(s:render(), {
         \ 'filter': function('s:filter'),
         \ 'callback': function('s:callback'),

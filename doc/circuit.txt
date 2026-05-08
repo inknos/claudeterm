@@ -294,6 +294,15 @@ Typical session: >
                         `model`, `position`) chain a second popup with
                         context-aware completions.
 
+                        Fuzzy matching: candidates are filtered and ranked
+                        by match quality. Matched characters are
+                        highlighted in the popup. On Vim 8.2.1726+ the
+                        built-in |matchfuzzypos()| provides scored ranking
+                        and multi-word matching (e.g. "pl op" matches
+                        "planopen"). On older Vim versions a case-
+                        insensitive subsequence filter is used instead
+                        (matching but no score-based ranking).
+
                         Requires Vim with |+popupwin| (8.2+). Falls back
                         to |input()| with tab-completion when popups are
                         not available.
