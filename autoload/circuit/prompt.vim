@@ -12,7 +12,7 @@ let s:prompt_positions = []
 let s:prompt_selected = 0
 let s:prompt_prefix = ''
 let s:prompt_props = []
-let s:prompt_needs_arg = ['mode', 'model', 'position']
+let s:prompt_needs_arg = ['model', 'position']
 let s:has_matchfuzzypos = exists('*matchfuzzypos')
 
 " ---------------------------------------------------------------------------

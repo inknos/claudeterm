@@ -73,7 +73,6 @@ command! -nargs=1 CTmodel    call circuit#set_model(<f-args>)
 command! -nargs=0 CTversion  call circuit#version()
 command! -nargs=0 -range   CTsend     call circuit#send_selection(<line1>, <line2>)
 command! -range -nargs=0 CTref        call circuit#stage_ref(<line1>, <line2>)
-command! -range -nargs=0 CTaddtochat  call circuit#stage_ref(<line1>, <line2>)
 command! -nargs=0 -range   CTrefsend  call circuit#send_staged_ref()
 command! -nargs=0 CTrefclear call circuit#clear_staged_refs()
 command! -nargs=0 CTreflist  call circuit#list_staged_refs()
@@ -86,8 +85,9 @@ command! -nargs=0 CTsessions call circuit#sessions()
 command! -nargs=0 CTprompt   call circuit#prompt()
 command! -nargs=0 CTping     call circuit#ping()
 command! -nargs=0 CTserve    call circuit#server_start()
-command! -nargs=0 CTpick     call circuit#open_sessions()
-command! -nargs=0 CTmodels   call circuit#open_models()
+command! -nargs=0 CTpick     call circuit#pick_session()
+command! -nargs=1 CTposition  call circuit#set_position(<f-args>)
+command! -nargs=0 CTmodels   call circuit#pick_model()
 
 function! s:dispatch(...) abort
   if a:0 == 0
@@ -148,9 +148,9 @@ function! s:dispatch(...) abort
   elseif l:cmd ==# 'serve'
     call circuit#server_start()
   elseif l:cmd ==# 'pick'
-    call circuit#open_sessions()
+    call circuit#pick_session()
   elseif l:cmd ==# 'models'
-    call circuit#open_models()
+    call circuit#pick_model()
   else
     echoerr 'vim-circuit: unknown subcommand "' . l:cmd . '"'
   endif

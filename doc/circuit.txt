@@ -114,8 +114,9 @@ arguments.
                         running.
 
                                                       *:CTresume*
-:CTerm resume           Open the session list (`opencode session list`).
-:CTresume               Kills the current terminal first if one is running.
+:CTerm resume           Open the session list (`opencode session list`) to
+:CTresume               switch to a different session. Kills the current
+                        terminal first. Fires |CTSessionChange|.
 
                                                       *:CTcontinue*
 :CTerm continue         Resume the most recent conversation in the current
@@ -132,9 +133,11 @@ arguments.
 ------------------------------------------------------------------------------
 5.2 Window Control                                    *circuit-window*
 
-                                                      *:CTerm-position*
+                                                      *:CTposition*
 :CTerm position {pos}   Move the terminal to a different split position.
-                        {pos} is one of: `right`, `left`, `top`, `bottom`.
+:CTposition {pos}       {pos} is one of: `right`, `left`, `top`, `bottom`.
+                        A vim-circuit-only setting; does not affect the
+                        opencode CLI.
 
 ------------------------------------------------------------------------------
 5.3 Code Context                                     *circuit-context*
@@ -162,13 +165,9 @@ arguments.
                         |g:circuit_tmap_c_l_sends_staged|). With no range, the
                         current line is used (same for |:CTerm| |ref|).
 
-                                                      *:CTaddtochat*
-:CTaddtochat            Same as |:CTref| (mnemonic: add a reference to the
-                        agent chat). Accepts a |:range| like |:CTref|.
-
 :CTerm ref              Stages a reference for the cursor line (no range
-                        in this form). For a range, use a ranged |:CTref| or
-                        |:CTaddtochat| instead.
+                        in this form). For a range, use a ranged |:CTref|
+                        instead.
 
                                                       *:CTrefsend*
 :CTerm refsend          Send all staged refs to the running agent terminal
@@ -226,8 +225,13 @@ arguments.
 5.8 Session List                                   *circuit-sessions*
 
                                                       *:CTsessions*
-:CTerm sessions         Open the session list (`opencode session list`
-:CTsessions             in a terminal).
+:CTerm sessions         Open the session list (`opencode session list`)
+:CTsessions             as an explicit browse action. Kills the current
+                        terminal first. Fires |CTSessionList| (distinct
+                        from |CTSessionChange| fired by |:CTresume|).
+                        Use |CTSessionList| in autocmds when you need to
+                        distinguish a user-initiated browse from a
+                        session switch.
 
 ------------------------------------------------------------------------------
 5.9 Command Prompt                                  *circuit-prompt*
@@ -276,14 +280,14 @@ use the server HTTP API instead of typing into the terminal.
                         useful when |g:circuit_server_mode| is `'manual'`.
 
                                                       *:CTpick*
-:CTerm pick             Open the TUI session picker overlay via
-:CTpick                 `POST /tui/open-sessions`. Requires the
-                        terminal to be open.
+:CTerm pick             Open the TUI session picker overlay inside the
+:CTpick                 running terminal via `POST /tui/open-sessions`.
+                        Requires the server to be running.
 
                                                       *:CTmodels*
-:CTerm models           Open the TUI model picker overlay via
-:CTmodels               `POST /tui/open-models`. Requires the
-                        terminal to be open.
+:CTerm models           Open the TUI model picker overlay inside the
+:CTmodels               running terminal via `POST /tui/open-models`.
+                        Requires the server to be running.
 
 ------------------------------------------------------------------------------
 5.11 Utility                                          *circuit-utility*
@@ -376,7 +380,7 @@ Available events:
   CTRedo                  Redo slash command sent
   CTExport                Export slash command sent
   CTSessionList           Session list opened
-  CTChatRefStaged         A |:CTref| / |:CTaddtochat| line range was staged
+  CTChatRefStaged         A |:CTref| line range was staged
   CTChatRefSent           Staged refs were sent to the terminal (via
                           |:CTrefsend| or |<C-l>| in |terminal| mode)
   CTChatRefCleared        Staged refs cleared (via |:CTrefclear|)

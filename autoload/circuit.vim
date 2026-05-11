@@ -793,7 +793,7 @@ function! circuit#version() abort
   endif
   let l:p = s:provider()
   let l:cli_ver = trim(system(s:resolve_bin() . ' ' . l:p.version_flag . ' 2>&1'))
-  echo 'vim-circuit:  0.1.0'
+  echo 'vim-circuit:  0.2.0'
   echo 'cli version:  ' . l:cli_ver
   echo 'vim:          ' . v:version
   echo 'terminal:     ' . (has('terminal') ? '+terminal' : '-terminal')
@@ -1058,7 +1058,7 @@ endfunction
 " TUI pickers (server-only)
 " ---------------------------------------------------------------------------
 
-function! circuit#open_sessions() abort
+function! circuit#pick_session() abort
   call s:server_ensure()
   if !s:server_running()
     call s:warn('server not running')
@@ -1069,7 +1069,7 @@ function! circuit#open_sessions() abort
   endif
 endfunction
 
-function! circuit#open_models() abort
+function! circuit#pick_model() abort
   call s:server_ensure()
   if !s:server_running()
     call s:warn('server not running')
