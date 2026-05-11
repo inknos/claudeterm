@@ -166,6 +166,27 @@ function! s:send_text(text, key) abort
   return 1
 endfunction
 
+" Append {text} to the TUI prompt without submitting.
+" Like s:send_text() but strips trailing newlines and skips submit.
+function! s:append_text(text, key) abort
+  let l:clean = substitute(a:text, '\n\+$', '', '')
+  if s:server_running() && s:term_alive()
+    call s:maybe_show(a:key)
+    call s:server_append_prompt(l:clean)
+  elseif s:term_alive()
+    call s:maybe_show(a:key)
+    call s:term_sendkeys_safe(l:clean)
+  else
+    if !s:get_toggle('start_on', a:key)
+      call s:warn('no active terminal')
+      return 0
+    endif
+    call s:start_with_prompt(a:text, a:key)
+    call s:maybe_show(a:key)
+  endif
+  return 1
+endfunction
+
 function! s:maybe_show(key) abort
   if bufwinid(s:term_bufnr) ==# -1 && s:get_toggle('show_on', a:key)
     call s:show()
@@ -874,7 +895,7 @@ function! circuit#send_staged_ref() abort
     return
   endif
   let l:text = join(s:staged_file_refs, "\n") . "\n"
-  if !s:send_text(l:text, 'refsend')
+  if !s:append_text(l:text, 'refsend')
     return
   endif
   let s:staged_file_refs = []
@@ -887,15 +908,15 @@ function! circuit#send_staged_ref() abort
   endif
 endfunction
 
-" Expression mapping for |terminal| mode: send staged refs and Enter,
-" or fall back to window right (|<C-w>|l).  When refs are staged but
-" the terminal has exited, delegate to send_staged_ref which can
-" auto-start a new session with --prompt.
+" Expression mapping for |terminal| mode: append staged refs to prompt
+" (without submitting), or fall back to window right (|<C-w>|l).
+" When refs are staged but the terminal has exited, delegate to
+" send_staged_ref which can auto-start a new session with --prompt.
 function! circuit#terminal_c_l() abort
   if !empty(s:staged_file_refs)
     if s:term_alive()
       let l:text = join(s:staged_file_refs, "\n") . "\n"
-      call s:send_text(l:text, 'refsend')
+      call s:append_text(l:text, 'refsend')
       let s:staged_file_refs = []
       call circuit#hooks#fire('ChatRefSent')
       return ''
@@ -1159,6 +1180,12 @@ endfunction
 " Send a TUI command (e.g. 'undo', 'plan') via POST /tui/execute-command.
 function! s:server_tui_cmd(command) abort
   return s:server_post('/tui/execute-command', {'command': a:command})
+endfunction
+
+" Clear the TUI prompt and append {text} without submitting.
+function! s:server_append_prompt(text) abort
+  call s:server_post('/tui/clear-prompt', {})
+  return s:server_post('/tui/append-prompt', {'text': a:text})
 endfunction
 
 " Clear the TUI prompt, append {text}, and submit it.
