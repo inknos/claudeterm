@@ -25,7 +25,9 @@ let g:circuit_use_git_root     = get(g:, 'circuit_use_git_root', 1)
 let g:circuit_model            = get(g:, 'circuit_model', '')
 let g:circuit_extra_args       = get(g:, 'circuit_extra_args', '')
 
-let g:circuit_plan_close_on_exec = get(g:, 'circuit_plan_close_on_exec', 1)
+let g:circuit_plan_close_on_exec    = get(g:, 'circuit_plan_close_on_exec', 1)
+let g:circuit_plan_filename_format  = get(g:, 'circuit_plan_filename_format', '%Y-%m-%d-%H%M')
+let g:circuit_plan_mode             = get(g:, 'circuit_plan_mode', 0)
 
 let g:circuit_start_on         = get(g:, 'circuit_start_on', 1)
 let g:circuit_show_on          = get(g:, 'circuit_show_on', 1)

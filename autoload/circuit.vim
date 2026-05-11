@@ -617,6 +617,12 @@ function! s:open_with_cmd(cmd, ...) abort
   execute 'lcd ' . fnameescape(l:cwd)
   call s:open_split()
   let l:opts = {'curwin': 1, 'term_finish': 'close'}
+  if s:get('plan_mode', 0)
+    let l:opts.env = {
+          \ 'OPENCODE_EXPERIMENTAL_PLAN_MODE': '1',
+          \ 'OPENCODE_CLIENT': 'cli',
+          \ }
+  endif
   call term_start(a:cmd, l:opts)
   execute 'lcd ' . fnameescape(l:saved_dir)
   let s:term_bufnr = bufnr('%')
@@ -677,6 +683,11 @@ function! s:latest_plan_file(dir) abort
   return l:best
 endfunction
 
+function! s:plan_filename(dir) abort
+  let l:fmt = s:get('plan_filename_format', '%Y-%m-%d-%H%M')
+  return a:dir . '/' . strftime(l:fmt) . '.md'
+endfunction
+
 function! circuit#plan_open() abort
   if s:needs_provider()
     return
@@ -698,6 +709,11 @@ function! circuit#plan_open() abort
       let l:dir = s:git_root() . '/' . l:dir
     endif
     let l:plan_file = s:latest_plan_file(l:dir)
+    if empty(l:plan_file)
+      call mkdir(l:dir, 'p')
+      let l:plan_file = s:plan_filename(l:dir)
+      call writefile([], l:plan_file)
+    endif
   endif
 
   let s:pre_plan_bufnr = bufnr('%')
@@ -733,17 +749,6 @@ function! circuit#plan_exec() abort
   if empty(trim(l:text))
     call s:warn('plan buffer is empty')
     return
-  endif
-
-  let l:p = s:provider()
-  if s:current_mode ==# 'plan' && !empty(l:p.exit_plan_cmd)
-    if s:server_running()
-      call s:server_tui_cmd(l:p.exit_plan_cmd)
-    else
-      call term_sendkeys(s:term_bufnr,
-            \ l:p.mode_prefix . l:p.exit_plan_cmd . "\n")
-    endif
-    let s:current_mode = l:p.exit_plan_cmd
   endif
 
   let l:plan_text = "Execute this plan:\n" . l:text . "\n"

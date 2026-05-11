@@ -142,8 +142,13 @@ Send slash commands to switch interactive modes in the running session.
 If no session is running, one is opened first.
 
                                                       *:CTplan*
-:CTerm plan             Enter plan mode (sends `/plan`).
-:CTplan
+:CTerm plan             Send `/plan` to the running session.
+:CTplan                 `/plan` is not a built-in OpenCode command; it is
+                        a custom slash command that must be defined in
+                        `.opencode/commands/plan.md` with `agent: plan` in
+                        its frontmatter for the Plan agent to activate.
+                        Without that file, this is a no-op in the TUI.
+                        See the OpenCode docs on custom commands.
 
 :CTerm mode {mode}      Send `/{mode}` to the running session
                         (tab-completable).
@@ -251,25 +256,30 @@ If no session is running, one is opened first.
 ------------------------------------------------------------------------------
 5.10 Plan Workflow                              *circuit-plan-workflow*
 
-The plan workflow lets you review and edit the agent's plan in a
-normal Vim buffer before executing it. OpenCode writes plans to
-`<project>/.opencode/plans/`; vim-circuit opens the most recent one
-in the current window for editing.
+The plan workflow lets you draft a plan in a normal Vim buffer and
+send it to the agent for execution. vim-circuit stores plan files
+under `<project>/.opencode/plans/` (configurable via the provider's
+`plan_dir`). When no existing file is found, a new timestamped file
+is created automatically so the plan is always persisted to disk.
 
 Typical session: >
-  :CTplan                " CLI enters plan mode
-  " (give the agent a task in the terminal)
-  " (agent produces a plan, writes it to disk)
-  :CTplanopen            " plan file opens in the current window
-  " (review, edit, or refine via the agent)
-  :CTplanexec            " send plan for execution
+  :CTplanopen            " create or open the latest plan file
+  " (write your plan in the buffer, then save with :w)
+  :CTplanexec            " send plan to the agent for execution
 <
 
+To switch OpenCode to its Plan agent before drafting, run
+`:CTplan` -- but that requires a `.opencode/commands/plan.md`
+custom command file in your project. See |:CTplan|.
+
                                                       *:CTplanopen*
-:CTerm planopen         Open the most recent plan file from
-:CTplanopen             `.opencode/plans/` in the current window. Sets
-                        |'autoread'| on the buffer. If already open
-                        in a window, focuses it.
+:CTerm planopen         Open the most recent `.md` file from the
+:CTplanopen             provider's plan directory in the current window.
+                        If no file exists yet, the directory is created
+                        and a new file is created using the name format
+                        from |g:circuit_plan_filename_format|. Sets
+                        |'autoread'| on the buffer. If the buffer is
+                        already open in a window, focuses it.
 
                                                       *:CTplanexec*
 :CTerm planexec         Read the plan buffer and send its contents to the
@@ -509,6 +519,31 @@ g:circuit_plan_close_on_exec
                             When `1`, |:CTplanexec| closes the plan
                             buffer after sending the plan. Set to `0`
                             to keep the plan buffer open.
+
+                                                *g:circuit_plan_filename_format*
+g:circuit_plan_filename_format
+                            String (default: `'%Y-%m-%d-%H%M'`)
+                            |strftime()| format string used to name new
+                            plan files created by |:CTplanopen| when no
+                            existing file is found in the provider's
+                            `plan_dir`. The `.md` extension is appended
+                            automatically.
+                            Example: >
+  let g:circuit_plan_filename_format = '%Y%m%d-%H%M%S'
+<
+
+                                                *g:circuit_plan_mode*
+g:circuit_plan_mode         Number (default: `0`)
+                            When `1`, sets `OPENCODE_EXPERIMENTAL_PLAN_MODE=1`
+                            and `OPENCODE_CLIENT=cli` in the terminal
+                            environment. This activates OpenCode's experimental
+                            plan-file feature: when the agent runs in plan
+                            mode, it writes the plan to a file under
+                            `.opencode/plans/` instead of keeping it only in
+                            the conversation context.
+                            Example: >
+  let g:circuit_plan_mode = 1
+<
 
 ------------------------------------------------------------------------------
 9.2 Auto-Reload                               *circuit-config-reload*

@@ -19,7 +19,6 @@ let s:providers.opencode = {
       \ 'mode_prefix': '/',
       \ 'models': [],
       \ 'plan_dir': '.opencode/plans',
-      \ 'exit_plan_cmd': '',
       \ 'slash_commands': {
       \   'undo': '/undo',
       \   'redo': '/redo',
