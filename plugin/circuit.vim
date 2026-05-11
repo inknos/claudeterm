@@ -24,7 +24,6 @@ let g:circuit_enter_insert     = get(g:, 'circuit_enter_insert', 1)
 let g:circuit_use_git_root     = get(g:, 'circuit_use_git_root', 1)
 let g:circuit_model            = get(g:, 'circuit_model', '')
 let g:circuit_extra_args       = get(g:, 'circuit_extra_args', '')
-let g:circuit_env              = get(g:, 'circuit_env', {})
 
 let g:circuit_plan_close_on_exec = get(g:, 'circuit_plan_close_on_exec', 1)
 

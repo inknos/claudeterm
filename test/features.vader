@@ -192,16 +192,6 @@ Execute (send_selection bails when per-command start_on_send is 0):
   let g:circuit_start_on = 1
   bdelete!
 
-Execute (opencode provider has env with OPENCODE_EXPERIMENTAL_PLAN_MODE):
-  let prov = circuit#providers#get('opencode')
-  Assert has_key(prov, 'env'), 'opencode should have env key'
-  Assert has_key(prov.env, 'OPENCODE_EXPERIMENTAL_PLAN_MODE')
-  AssertEqual '1', prov.env.OPENCODE_EXPERIMENTAL_PLAN_MODE
-
-Execute (g:circuit_env defaults to empty dict):
-  Assert type(g:circuit_env) ==# type({})
-  Assert empty(g:circuit_env)
-
 Execute (warnings use echomsg and persist in :messages):
   let g:circuit_provider = 'opencode'
   redir => output

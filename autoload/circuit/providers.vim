@@ -25,7 +25,6 @@ let s:providers.opencode = {
       \   'redo': '/redo',
       \   'export': '/export',
       \ },
-      \ 'env': {'OPENCODE_EXPERIMENTAL_PLAN_MODE': '1'},
       \ }
 
 " ---------------------------------------------------------------------------

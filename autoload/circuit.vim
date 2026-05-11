@@ -15,7 +15,6 @@ let s:autoread_armed = 0
 let s:staged_file_refs = []
 let s:plan_bufnr = -1
 let s:pre_plan_bufnr = -1
-let s:env_warned = 0
 let s:just_started = 0
 let s:server_job = -1
 let s:server_port = 0
@@ -335,24 +334,6 @@ function! s:run_cli_cmd(provider_field, label) abort
   echo trim(system(s:resolve_bin() . ' ' . l:p[a:provider_field] . ' 2>&1'))
 endfunction
 
-function! s:merged_env() abort
-  let l:p = s:provider()
-  let l:env = copy(get(l:p, 'env', {}))
-  let l:user_env = s:get('env', {})
-  call extend(l:env, l:user_env)
-  if empty(l:env)
-    return {}
-  endif
-  if !has('patch-8.0.902')
-    if !s:env_warned
-      call s:warn('Vim patch 8.0.902+ required for provider env vars; skipping')
-      let s:env_warned = 1
-    endif
-    return {}
-  endif
-  return l:env
-endfunction
-
 function! s:show_setup_guide() abort
   call s:open_split()
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
@@ -636,10 +617,6 @@ function! s:open_with_cmd(cmd, ...) abort
   execute 'lcd ' . fnameescape(l:cwd)
   call s:open_split()
   let l:opts = {'curwin': 1, 'term_finish': 'close'}
-  let l:env = s:merged_env()
-  if !empty(l:env)
-    let l:opts.env = l:env
-  endif
   call term_start(a:cmd, l:opts)
   execute 'lcd ' . fnameescape(l:saved_dir)
   let s:term_bufnr = bufnr('%')

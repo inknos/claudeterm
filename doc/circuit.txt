@@ -510,20 +510,6 @@ g:circuit_plan_close_on_exec
                             buffer after sending the plan. Set to `0`
                             to keep the plan buffer open.
 
-                                                *g:circuit_env*
-g:circuit_env               Dictionary (default: `{}`)
-                            Extra environment variables passed to the
-                            OpenCode terminal via |term_start()|. Merged
-                            with the built-in env dict (which sets
-                            `OPENCODE_EXPERIMENTAL_PLAN_MODE=1`);
-                            user values take precedence. Override or
-                            extend: >
-  let g:circuit_env = {'MY_VAR': 'value'}
-<
-                            Requires Vim patch 8.0.902+. On older Vim
-                            versions, env vars are silently skipped
-                            (a one-time warning is printed).
-
 ------------------------------------------------------------------------------
 9.2 Auto-Reload                               *circuit-config-reload*
 
@@ -804,13 +790,6 @@ OpenCode prints JSON (`sessionID`, `invalid_format`, `ses`, etc.)~
   |:CTnew| to start without `--continue`, and check OpenCode
   project issues for the exact message. If the session still works,
   the line is often harmless noise from a background request.
-
-Environment variables not applied~
-  If you see the warning "Vim patch 8.0.902+ required for provider env
-  vars", your Vim is too old to pass per-job environment variables via
-  |term_start()|. Upgrade to Vim 8.1+ or set the variables in your
-  shell profile instead (e.g. `export OPENCODE_EXPERIMENTAL_PLAN_MODE=1`
-  in `.bashrc`). See |g:circuit_env|.
 
 Keymaps conflict~
   Set `g:circuit_map_keys = 0` to disable all defaults, then define
