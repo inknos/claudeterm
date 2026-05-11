@@ -13,7 +13,6 @@ Execute (circuit#providers#get returns opencode dict with expected keys):
   AssertEqual '/undo', p.slash_commands.undo
   AssertEqual '/redo', p.slash_commands.redo
   AssertEqual '/export', p.slash_commands.export
-  Assert index(p.modes, 'plan') >= 0
 
 Execute (circuit#providers#get throws for unknown provider):
   AssertThrows call circuit#providers#get('nonexistent')

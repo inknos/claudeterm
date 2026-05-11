@@ -13,18 +13,16 @@ CONTENTS                                              *circuit-contents*
   4. Quick Start .......................... |circuit-quickstart|
   5. Commands ............................. |circuit-commands|
      5.1 Session Management ............... |circuit-session|
-     5.2 Mode Control .................... |circuit-modes|
-     5.3 Window Control .................. |circuit-window|
-     5.4 Code Context .................... |circuit-context|
-     5.5 Model ........................... |circuit-model|
-     5.6 Undo / Redo .................... |circuit-undo|
-     5.7 Export .......................... |circuit-export|
-     5.8 Stats .......................... |circuit-stats|
-     5.9 Session List ................... |circuit-sessions|
-     5.10 Plan Workflow .................. |circuit-plan-workflow|
-     5.11 Command Prompt ................. |circuit-prompt|
-     5.12 Server ......................... |circuit-server|
-     5.13 Utility ........................ |circuit-utility|
+     5.2 Window Control .................. |circuit-window|
+     5.3 Code Context .................... |circuit-context|
+     5.4 Model ........................... |circuit-model|
+     5.5 Undo / Redo .................... |circuit-undo|
+     5.6 Export .......................... |circuit-export|
+     5.7 Stats .......................... |circuit-stats|
+     5.8 Session List ................... |circuit-sessions|
+     5.9 Command Prompt ................. |circuit-prompt|
+     5.10 Server ......................... |circuit-server|
+     5.11 Utility ........................ |circuit-utility|
   6. Keymaps .............................. |circuit-keymaps|
      6.1 Normal Mode ..................... |circuit-keymaps-normal|
      6.2 Visual Mode ..................... |circuit-keymaps-visual|
@@ -45,7 +43,7 @@ CONTENTS                                              *circuit-contents*
 vim-circuit embeds OpenCode (https://github.com/opencode-ai/opencode)
 in Vim using the built-in |:terminal| feature. It manages a persistent
 terminal session tied to your current project and provides commands for
-session management, model selection, plan workflow, and more.
+session management, model selection, and more.
 
 Key design principles:
 
@@ -96,10 +94,6 @@ Switch model:                                      *:CTerm-model*
 >
   :CTerm model {name}
 <
-Enter plan mode:                                   *:CTerm-mode*
->
-  :CTerm mode plan
-<
 Use |<leader>[| to open the command prompt for quick access to all
 commands.
 
@@ -136,32 +130,14 @@ arguments.
 :CTkill
 
 ------------------------------------------------------------------------------
-5.2 Mode Control                                       *circuit-modes*
-
-Send slash commands to switch interactive modes in the running session.
-If no session is running, one is opened first.
-
-                                                      *:CTplan*
-:CTerm plan             Send `/plan` to the running session.
-:CTplan                 `/plan` is not a built-in OpenCode command; it is
-                        a custom slash command that must be defined in
-                        `.opencode/commands/plan.md` with `agent: plan` in
-                        its frontmatter for the Plan agent to activate.
-                        Without that file, this is a no-op in the TUI.
-                        See the OpenCode docs on custom commands.
-
-:CTerm mode {mode}      Send `/{mode}` to the running session
-                        (tab-completable).
-
-------------------------------------------------------------------------------
-5.3 Window Control                                    *circuit-window*
+5.2 Window Control                                    *circuit-window*
 
                                                       *:CTerm-position*
 :CTerm position {pos}   Move the terminal to a different split position.
                         {pos} is one of: `right`, `left`, `top`, `bottom`.
 
 ------------------------------------------------------------------------------
-5.4 Code Context                                     *circuit-context*
+5.3 Code Context                                     *circuit-context*
 
                                                       *:CTsend*
 :CTerm send             Send the current visual selection to the OpenCode
@@ -215,14 +191,14 @@ If no session is running, one is opened first.
 :CTreflist
 
 ------------------------------------------------------------------------------
-5.5 Model                                             *circuit-model*
+5.4 Model                                             *circuit-model*
 
                                                       *:CTmodel*
 :CTerm model {name}     Kill the current session and restart with the given
 :CTmodel {name}         model. Full model names are accepted.
 
 ------------------------------------------------------------------------------
-5.6 Undo / Redo                                        *circuit-undo*
+5.5 Undo / Redo                                        *circuit-undo*
 
                                                       *:CTundo*
 :CTerm undo             Send `/undo` to the running terminal.
@@ -233,84 +209,44 @@ If no session is running, one is opened first.
 :CTredo
 
 ------------------------------------------------------------------------------
-5.7 Export                                            *circuit-export*
+5.6 Export                                            *circuit-export*
 
                                                       *:CTexport*
 :CTerm export           Send `/export` to the running terminal.
 :CTexport
 
 ------------------------------------------------------------------------------
-5.8 Stats                                              *circuit-stats*
+5.7 Stats                                              *circuit-stats*
 
                                                       *:CTstats*
 :CTerm stats            Run `opencode stats` and display the output.
 :CTstats
 
 ------------------------------------------------------------------------------
-5.9 Session List                                   *circuit-sessions*
+5.8 Session List                                   *circuit-sessions*
 
                                                       *:CTsessions*
 :CTerm sessions         Open the session list (`opencode session list`
 :CTsessions             in a terminal).
 
 ------------------------------------------------------------------------------
-5.10 Plan Workflow                              *circuit-plan-workflow*
-
-The plan workflow lets you draft a plan in a normal Vim buffer and
-send it to the agent for execution. vim-circuit stores plan files
-under `<project>/.opencode/plans/` (configurable via the provider's
-`plan_dir`). When no existing file is found, a new timestamped file
-is created automatically so the plan is always persisted to disk.
-
-Typical session: >
-  :CTplanopen            " create or open the latest plan file
-  " (write your plan in the buffer, then save with :w)
-  :CTplanexec            " send plan to the agent for execution
-<
-
-To switch OpenCode to its Plan agent before drafting, run
-`:CTplan` -- but that requires a `.opencode/commands/plan.md`
-custom command file in your project. See |:CTplan|.
-
-                                                      *:CTplanopen*
-:CTerm planopen         Open the most recent `.md` file from the
-:CTplanopen             provider's plan directory in the current window.
-                        If no file exists yet, the directory is created
-                        and a new file is created using the name format
-                        from |g:circuit_plan_filename_format|. Sets
-                        |'autoread'| on the buffer. If the buffer is
-                        already open in a window, focuses it.
-
-                                                      *:CTplanexec*
-:CTerm planexec         Read the plan buffer and send its contents to the
-:CTplanexec             OpenCode terminal as a prompt. Closes the plan
-                        buffer afterward unless
-                        |g:circuit_plan_close_on_exec| is `0`.
-
-                                                      *:CTplanclose*
-:CTerm planclose        Close the plan buffer window and restore the
-:CTplanclose            previous window layout. Does not delete the file;
-                        reopen with |:CTplanopen|.
-
-------------------------------------------------------------------------------
-5.11 Command Prompt                                  *circuit-prompt*
+5.9 Command Prompt                                  *circuit-prompt*
 
                                                       *:CTprompt*
 :CTerm prompt           Open a floating command palette. Type to filter
 :CTprompt               subcommands, use |<Tab>|/|<S-Tab>| to navigate,
                         |<CR>| to execute, |<Esc>| to cancel.
 
-                        Subcommands that require an argument (`mode`,
-                        `model`, `position`) chain a second popup with
+                        Subcommands that require an argument (`model`,
+                        `position`) chain a second popup with
                         context-aware completions.
 
                         Fuzzy matching: candidates are filtered and ranked
                         by match quality. Matched characters are
                         highlighted in the popup. On Vim 8.2.1726+ the
                         built-in |matchfuzzypos()| provides scored ranking
-                        and multi-word matching (e.g. "pl op" matches
-                        "planopen"). On older Vim versions a case-
-                        insensitive subsequence filter is used instead
+                        and multi-word matching. On older Vim versions a
+                        case-insensitive subsequence filter is used instead
                         (matching but no score-based ranking).
 
                         Requires Vim with |+popupwin| (8.2+). Falls back
@@ -318,7 +254,7 @@ custom command file in your project. See |:CTplan|.
                         not available.
 
 ------------------------------------------------------------------------------
-5.12 Server                                            *circuit-server*
+5.10 Server                                            *circuit-server*
 
 The plugin automatically manages
 a background `opencode serve` process per Vim instance. The server is
@@ -350,7 +286,7 @@ use the server HTTP API instead of typing into the terminal.
                         terminal to be open.
 
 ------------------------------------------------------------------------------
-5.13 Utility                                          *circuit-utility*
+5.11 Utility                                          *circuit-utility*
 
                                                       *:CTversion*
 :CTerm version          Print the OpenCode CLI version string.
@@ -404,14 +340,11 @@ These keymaps are active when the cursor is inside any terminal buffer.
 `:CTerm` supports context-aware tab-completion:
 
   :CTerm <Tab>           Completes subcommands: `resume`, `continue`,
-                         `new`, `kill`, `plan`, `mode`, `position`,
-                         `send`, `chat`, `ref`, `refsend`, `refclear`,
-                         `reflist`, `model`, `version`, `undo`, `redo`,
-                         `export`, `stats`, `sessions`, `planopen`,
-                         `planexec`, `planclose`, `prompt`, `ping`,
-                         `serve`, `pick`, `models`.
-
-  :CTerm mode <Tab>      Completes available modes: `plan`.
+                         `new`, `kill`, `position`, `send`, `chat`,
+                         `ref`, `refsend`, `refclear`, `reflist`,
+                         `model`, `version`, `undo`, `redo`, `export`,
+                         `stats`, `sessions`, `prompt`, `ping`, `serve`,
+                         `pick`, `models`.
 
   :CTerm model <Tab>     Completes model names (empty by default; full
                          model names are always accepted).
@@ -438,7 +371,6 @@ Available events:
   CTKill                  Terminal killed
   CTTermExited            OpenCode process exited (split closed, buffer wiped)
   CTReload                One or more buffers auto-reloaded
-  CTModeChange            Interactive mode changed
   CTSessionChange         Session switched (resume/continue/new)
   CTUndo                  Undo slash command sent
   CTRedo                  Redo slash command sent
@@ -448,9 +380,6 @@ Available events:
   CTChatRefSent           Staged refs were sent to the terminal (via
                           |:CTrefsend| or |<C-l>| in |terminal| mode)
   CTChatRefCleared        Staged refs cleared (via |:CTrefclear|)
-  CTPlanOpen              Plan buffer opened (|:CTplanopen|)
-  CTPlanExec              Plan sent for execution (|:CTplanexec|)
-  CTPlanClose             Plan buffer closed (|:CTplanclose|)
 
 ==============================================================================
 9. Configuration                              *circuit-configuration*
@@ -512,38 +441,6 @@ g:circuit_server_mode      String (default: `'lazy'`)
                             `'manual'` — never auto-start; use |:CTserve|
                                          or |:CTping| to start manually.
                             The server is always stopped on |VimLeave|.
-
-                                                *g:circuit_plan_close_on_exec*
-g:circuit_plan_close_on_exec
-                            Number (default: `1`)
-                            When `1`, |:CTplanexec| closes the plan
-                            buffer after sending the plan. Set to `0`
-                            to keep the plan buffer open.
-
-                                                *g:circuit_plan_filename_format*
-g:circuit_plan_filename_format
-                            String (default: `'%Y-%m-%d-%H%M'`)
-                            |strftime()| format string used to name new
-                            plan files created by |:CTplanopen| when no
-                            existing file is found in the provider's
-                            `plan_dir`. The `.md` extension is appended
-                            automatically.
-                            Example: >
-  let g:circuit_plan_filename_format = '%Y%m%d-%H%M%S'
-<
-
-                                                *g:circuit_plan_mode*
-g:circuit_plan_mode         Number (default: `0`)
-                            When `1`, sets `OPENCODE_EXPERIMENTAL_PLAN_MODE=1`
-                            and `OPENCODE_CLIENT=cli` in the terminal
-                            environment. This activates OpenCode's experimental
-                            plan-file feature: when the agent runs in plan
-                            mode, it writes the plan to a file under
-                            `.opencode/plans/` instead of keeping it only in
-                            the conversation context.
-                            Example: >
-  let g:circuit_plan_mode = 1
-<
 
 ------------------------------------------------------------------------------
 9.2 Auto-Reload                               *circuit-config-reload*
@@ -727,16 +624,6 @@ g:circuit_show_on_chat      Number (default: unset, falls back to
                             |g:circuit_show_on|)
                             Override reveal-on-send for |:CTchat|.
 
-                                          *g:circuit_start_on_mode*
-g:circuit_start_on_mode     Number (default: unset, falls back to
-                            |g:circuit_start_on|)
-                            Override auto-start for |:CTplan|.
-
-                                          *g:circuit_show_on_mode*
-g:circuit_show_on_mode      Number (default: unset, falls back to
-                            |g:circuit_show_on|)
-                            Override reveal-on-send for |:CTplan|.
-
                                                 *g:circuit_sendkeys_delay*
 g:circuit_sendkeys_delay    Number (default: `200`)
                             Milliseconds to wait before sending keys to a
@@ -759,7 +646,6 @@ Summary table: ~
   |:CTrefsend|       g:circuit_start_on_refsend   g:circuit_show_on_refsend
   |:CTsend|          g:circuit_start_on_send       g:circuit_show_on_send
   |:CTchat|          g:circuit_start_on_chat       g:circuit_show_on_chat
-  |:CTplan|          g:circuit_start_on_mode       g:circuit_show_on_mode
 
   Global defaults: |g:circuit_start_on| (1)    |g:circuit_show_on| (1)
 

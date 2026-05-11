@@ -25,10 +25,6 @@ let g:circuit_use_git_root     = get(g:, 'circuit_use_git_root', 1)
 let g:circuit_model            = get(g:, 'circuit_model', '')
 let g:circuit_extra_args       = get(g:, 'circuit_extra_args', '')
 
-let g:circuit_plan_close_on_exec    = get(g:, 'circuit_plan_close_on_exec', 1)
-let g:circuit_plan_filename_format  = get(g:, 'circuit_plan_filename_format', '%Y-%m-%d-%H%M')
-let g:circuit_plan_mode             = get(g:, 'circuit_plan_mode', 0)
-
 let g:circuit_start_on         = get(g:, 'circuit_start_on', 1)
 let g:circuit_show_on          = get(g:, 'circuit_show_on', 1)
 
@@ -73,10 +69,6 @@ command! -nargs=0 CTresume   call circuit#resume()
 command! -nargs=0 CTcontinue call circuit#continue()
 command! -nargs=0 CTnew      call circuit#new()
 command! -nargs=0 CTkill     call circuit#kill()
-command! -nargs=0 CTplan      call circuit#set_mode('plan')
-command! -nargs=0 CTplanopen  call circuit#plan_open()
-command! -nargs=0 CTplanexec  call circuit#plan_exec()
-command! -nargs=0 CTplanclose call circuit#plan_close()
 command! -nargs=1 CTmodel    call circuit#set_model(<f-args>)
 command! -nargs=0 CTversion  call circuit#version()
 command! -nargs=0 -range   CTsend     call circuit#send_selection(<line1>, <line2>)
@@ -127,20 +119,6 @@ function! s:dispatch(...) abort
     call circuit#chat()
   elseif l:cmd ==# 'version'
     call circuit#version()
-  elseif l:cmd ==# 'plan'
-    call circuit#set_mode('plan')
-  elseif l:cmd ==# 'planopen'
-    call circuit#plan_open()
-  elseif l:cmd ==# 'planexec'
-    call circuit#plan_exec()
-  elseif l:cmd ==# 'planclose'
-    call circuit#plan_close()
-  elseif l:cmd ==# 'mode'
-    if a:0 >= 2
-      call circuit#set_mode(a:2)
-    else
-      echoerr 'vim-circuit: mode requires an argument'
-    endif
   elseif l:cmd ==# 'model'
     if a:0 >= 2
       call circuit#set_model(a:2)

@@ -112,25 +112,6 @@ Execute (stage_and_send_ref clears previous refs before staging):
   let g:circuit_start_on = 1
   bdelete!
 
-Execute (opencode provider has plan_dir set to .opencode/plans):
-  let g:circuit_provider = 'opencode'
-  let prov = circuit#providers#current()
-  AssertEqual '.opencode/plans', prov.plan_dir
-
-Execute (plan_exec warns with no plan buffer):
-  let g:circuit_provider = 'opencode'
-  redir => output
-  silent call circuit#plan_exec()
-  redir END
-  Assert output =~# 'no plan buffer'
-
-Execute (plan_close warns with no plan buffer):
-  let g:circuit_provider = 'opencode'
-  redir => output
-  silent call circuit#plan_close()
-  redir END
-  Assert output =~# 'no plan buffer'
-
 Execute (prompt is in subcommand completion list):
   let result = circuit#complete('pro', 'CTerm pro', 9)
   Assert index(result, 'prompt') >= 0
@@ -199,27 +180,4 @@ Execute (warnings use echomsg and persist in :messages):
   Assert output =~# 'no active terminal'
   Assert output =~# 'vim-circuit:', 'should have vim-circuit prefix'
 
-Execute (plan_open creates a real file when no plan file exists):
-  let g:circuit_provider = 'opencode'
-  let g:circuit_plan_filename_format = 'testplan'
-  " Use an absolute tmpdir as plan_dir so s:git_root() is not involved
-  let g:_test_tmpdir = tempname()
-  call mkdir(g:_test_tmpdir, 'p')
-  " Patch the provider's plan_dir to our absolute tmpdir
-  let g:_test_prov = circuit#providers#get('opencode')
-  let g:_test_orig_plan_dir = g:_test_prov.plan_dir
-  let g:_test_prov.plan_dir = g:_test_tmpdir
-  call circuit#plan_open()
-  " A real file must have been created and opened
-  let g:_test_bname = bufname('%')
-  Assert g:_test_bname =~# 'testplan\.md$',
-        \ 'expected testplan.md, got: ' . g:_test_bname
-  Assert filereadable(g:_test_bname), 'file should exist on disk'
-  Assert getbufvar('%', '&buftype') ==# '', 'should be a normal file buffer'
-  " Cleanup
-  execute 'bdelete!'
-  call delete(g:_test_bname)
-  call delete(g:_test_tmpdir, 'd')
-  let g:_test_prov.plan_dir = g:_test_orig_plan_dir
-  unlet g:circuit_plan_filename_format g:_test_tmpdir g:_test_prov
-        \ g:_test_orig_plan_dir g:_test_bname
+

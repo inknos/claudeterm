@@ -8,13 +8,10 @@
 let s:term_bufnr = -1
 let s:term_winid = -1
 let s:reload_timer = -1
-let s:current_mode = ''
 let s:current_model = ''
 let s:autoread_save = 0
 let s:autoread_armed = 0
 let s:staged_file_refs = []
-let s:plan_bufnr = -1
-let s:pre_plan_bufnr = -1
 let s:just_started = 0
 let s:server_job = -1
 let s:server_port = 0
@@ -617,12 +614,6 @@ function! s:open_with_cmd(cmd, ...) abort
   execute 'lcd ' . fnameescape(l:cwd)
   call s:open_split()
   let l:opts = {'curwin': 1, 'term_finish': 'close'}
-  if s:get('plan_mode', 0)
-    let l:opts.env = {
-          \ 'OPENCODE_EXPERIMENTAL_PLAN_MODE': '1',
-          \ 'OPENCODE_CLIENT': 'cli',
-          \ }
-  endif
   call term_start(a:cmd, l:opts)
   execute 'lcd ' . fnameescape(l:saved_dir)
   let s:term_bufnr = bufnr('%')
@@ -633,158 +624,6 @@ function! s:open_with_cmd(cmd, ...) abort
   call s:start_reload_timer()
   call circuit#hooks#fire(a:0 > 0 ? a:1 : 'Open')
   call s:focus_term()
-endfunction
-
-" ---------------------------------------------------------------------------
-" Mode control (sends slash commands to the running session)
-" ---------------------------------------------------------------------------
-
-function! circuit#set_mode(mode) abort
-  let l:p = s:check_supported('modes', 'interactive modes')
-  if empty(l:p)
-    return
-  endif
-
-  if s:server_running()
-    if !s:server_tui_cmd(a:mode)
-      call s:warn('mode switch failed (server returned error)')
-      return
-    endif
-  else
-    if !s:maybe_start('mode')
-      return
-    endif
-    call s:maybe_show('mode')
-    call s:term_sendkeys_safe(l:p.mode_prefix . a:mode . "\n")
-  endif
-  let s:current_mode = a:mode
-  call circuit#hooks#fire('ModeChange')
-endfunction
-
-" ---------------------------------------------------------------------------
-" Plan workflow (open / exec / close)
-" ---------------------------------------------------------------------------
-
-function! s:latest_plan_file(dir) abort
-  let l:expanded = expand(a:dir)
-  let l:files = glob(l:expanded . '/*.md', 0, 1)
-  if empty(l:files)
-    return ''
-  endif
-  let l:best = l:files[0]
-  let l:best_t = getftime(l:best)
-  for l:f in l:files[1:]
-    let l:t = getftime(l:f)
-    if l:t > l:best_t
-      let l:best = l:f
-      let l:best_t = l:t
-    endif
-  endfor
-  return l:best
-endfunction
-
-function! s:plan_filename(dir) abort
-  let l:fmt = s:get('plan_filename_format', '%Y-%m-%d-%H%M')
-  return a:dir . '/' . strftime(l:fmt) . '.md'
-endfunction
-
-function! circuit#plan_open() abort
-  if s:needs_provider()
-    return
-  endif
-
-  if s:plan_bufnr != -1 && bufexists(s:plan_bufnr)
-    let l:winid = bufwinid(s:plan_bufnr)
-    if l:winid != -1
-      call win_gotoid(l:winid)
-      return
-    endif
-  endif
-
-  let l:p = s:provider()
-  let l:plan_file = ''
-  if !empty(l:p.plan_dir)
-    let l:dir = l:p.plan_dir
-    if l:dir[0] !=# '/' && l:dir[0] !=# '~'
-      let l:dir = s:git_root() . '/' . l:dir
-    endif
-    let l:plan_file = s:latest_plan_file(l:dir)
-    if empty(l:plan_file)
-      call mkdir(l:dir, 'p')
-      let l:plan_file = s:plan_filename(l:dir)
-      call writefile([], l:plan_file)
-    endif
-  endif
-
-  let s:pre_plan_bufnr = bufnr('%')
-
-  if !empty(l:plan_file)
-    execute 'edit ' . fnameescape(l:plan_file)
-  else
-    enew
-    setlocal buftype=nofile filetype=markdown
-    file [circuit-plan]
-  endif
-
-  setlocal autoread
-  let s:plan_bufnr = bufnr('%')
-  call circuit#hooks#fire('PlanOpen')
-endfunction
-
-function! circuit#plan_exec() abort
-  if s:needs_provider()
-    return
-  endif
-  if s:plan_bufnr == -1 || !bufexists(s:plan_bufnr)
-    call s:warn('no plan buffer open (use :CTplanopen)')
-    return
-  endif
-  if !s:term_alive()
-    call s:warn('no active terminal')
-    return
-  endif
-
-  let l:lines = getbufline(s:plan_bufnr, 1, '$')
-  let l:text = join(l:lines, "\n")
-  if empty(trim(l:text))
-    call s:warn('plan buffer is empty')
-    return
-  endif
-
-  let l:plan_text = "Execute this plan:\n" . l:text . "\n"
-  if s:server_running()
-    call s:server_submit_prompt(l:plan_text)
-  else
-    call term_sendkeys(s:term_bufnr, l:plan_text)
-  endif
-  call circuit#hooks#fire('PlanExec')
-
-  if s:get('plan_close_on_exec', 1)
-    call circuit#plan_close()
-  endif
-endfunction
-
-function! circuit#plan_close() abort
-  if s:plan_bufnr == -1 || !bufexists(s:plan_bufnr)
-    call s:warn('no plan buffer to close')
-    return
-  endif
-
-  let l:winid = bufwinid(s:plan_bufnr)
-  if l:winid != -1
-    call win_gotoid(l:winid)
-  endif
-
-  if s:pre_plan_bufnr != -1 && bufexists(s:pre_plan_bufnr)
-    execute 'buffer ' . s:pre_plan_bufnr
-  else
-    enew
-  endif
-
-  execute 'bdelete ' . s:plan_bufnr
-  let s:plan_bufnr = -1
-  let s:pre_plan_bufnr = -1
-  call circuit#hooks#fire('PlanClose')
 endfunction
 
 " ---------------------------------------------------------------------------
@@ -1251,20 +1090,16 @@ function! circuit#complete(arglead, cmdline, cursorpos) abort
 
   if l:nparts <= 2
     let l:subs = ['resume', 'continue', 'new', 'kill',
-          \ 'plan', 'mode', 'position', 'send', 'chat',
+          \ 'position', 'send', 'chat',
           \ 'ref', 'refsend', 'refclear', 'reflist', 'model',
           \ 'version', 'undo', 'redo', 'export', 'stats',
-          \ 'sessions', 'planopen', 'planexec', 'planclose',
-          \ 'prompt', 'ping', 'serve', 'pick', 'models']
+          \ 'sessions', 'prompt', 'ping', 'serve', 'pick', 'models']
     return filter(copy(l:subs), 'v:val =~# "^" . a:arglead')
   endif
 
   let l:sub = l:parts[1]
   let l:cur = circuit#providers#current()
-  if l:sub ==# 'mode'
-    let l:modes = empty(l:cur) ? [] : l:cur.modes
-    return filter(copy(l:modes), 'v:val =~# "^" . a:arglead')
-  elseif l:sub ==# 'model'
+  if l:sub ==# 'model'
     let l:models = empty(l:cur) ? [] : l:cur.models
     return filter(copy(l:models), 'v:val =~# "^" . a:arglead')
   elseif l:sub ==# 'position'

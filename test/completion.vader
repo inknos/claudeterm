@@ -4,8 +4,6 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'continue') >= 0
   Assert index(result, 'new') >= 0
   Assert index(result, 'kill') >= 0
-  Assert index(result, 'plan') >= 0
-  Assert index(result, 'mode') >= 0
   Assert index(result, 'model') >= 0
   Assert index(result, 'position') >= 0
   Assert index(result, 'send') >= 0
@@ -20,13 +18,15 @@ Execute (subcommand completion includes all commands):
   Assert index(result, 'export') >= 0
   Assert index(result, 'stats') >= 0
   Assert index(result, 'sessions') >= 0
-  Assert index(result, 'planopen') >= 0
-  Assert index(result, 'planexec') >= 0
-  Assert index(result, 'planclose') >= 0
   Assert index(result, 'prompt') >= 0
 
 Execute (removed commands are absent from completion):
   let result = circuit#complete('', 'CTerm ', 6)
+  Assert index(result, 'plan') < 0
+  Assert index(result, 'planopen') < 0
+  Assert index(result, 'planexec') < 0
+  Assert index(result, 'planclose') < 0
+  Assert index(result, 'mode') < 0
   Assert index(result, 'pr') < 0
   Assert index(result, 'worktree') < 0
   Assert index(result, 'fast') < 0
@@ -41,20 +41,6 @@ Execute (subcommand completion filters by prefix):
   Assert index(result, 'refclear') >= 0
   Assert index(result, 'reflist') >= 0
   Assert index(result, 'kill') < 0
-
-Execute (subcommand completion filters plan subcommands by prefix):
-  let result = circuit#complete('plano', 'CTerm plano', 11)
-  Assert index(result, 'planopen') >= 0
-  Assert index(result, 'planexec') < 0
-  let result2 = circuit#complete('plane', 'CTerm plane', 11)
-  Assert index(result2, 'planexec') >= 0
-  let result3 = circuit#complete('planc', 'CTerm planc', 11)
-  Assert index(result3, 'planclose') >= 0
-
-Execute (mode completion returns plan for opencode):
-  let g:circuit_provider = 'opencode'
-  let result = circuit#complete('p', 'CTerm mode p', 12)
-  Assert index(result, 'plan') >= 0
 
 Execute (model completion returns empty for opencode):
   let g:circuit_provider = 'opencode'

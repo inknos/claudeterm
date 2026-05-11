@@ -15,10 +15,7 @@ let s:providers.opencode = {
       \ 'version_flag': '--version',
       \ 'stats_cmd': 'stats',
       \ 'session_list_cmd': 'session list',
-      \ 'modes': ['plan'],
-      \ 'mode_prefix': '/',
       \ 'models': [],
-      \ 'plan_dir': '.opencode/plans',
       \ 'slash_commands': {
       \   'undo': '/undo',
       \   'redo': '/redo',
